@@ -121,11 +121,15 @@ void main() {
     lens.x *= viewHeight / viewWidth;
     uv = lens * 0.5 + 0.5;
 
-    // Preserve a dark overscan border instead of stretching edge pixels forever.
+    // The border is controlled only by ROUNDED_OVERSCAN. Lens distortion remains
+    // active when it is disabled, but the output edge becomes truly rectangular.
+    float lensBorder = 1.0;
+#ifdef ROUNDED_OVERSCAN
     vec2 edge = smoothstep(vec2(0.0), pixel * 5.0, uv)
               * (vec2(1.0) - smoothstep(vec2(1.0) - pixel * 5.0,
                                         vec2(1.0), uv));
-    float lensBorder = edge.x * edge.y;
+    lensBorder = edge.x * edge.y;
+#endif
 
     uv = virtualPixels(clampUV(uv, pixel), resolution);
     uv = clampUV(uv, pixel);
@@ -250,4 +254,3 @@ void main() {
     color += vec3(0.006, 0.008, 0.004) * lensBorder;
     gl_FragData[0] = vec4(clamp(color, 0.0, 1.0), 1.0);
 }
-
