@@ -14,6 +14,18 @@
 #define GLITCH_STRENGTH 7.0 // [0.0 2.0 4.0 7.0 10.0 16.0 24.0 36.0] Maximum horizontal tracking displacement, in pixels.
 #define STATIC_FREQUENCY 0.04 // [0.00 0.04 0.08 0.14 0.22 0.35 0.50] Chance of a short full-screen static burst.
 
+// Signal instability. Every new behavior has its own toggle and intensity so
+// presets can use it without forcing it on custom configurations.
+#define AUTO_EXPOSURE // Slowly pumps gain after large scene-brightness changes.
+#define EXPOSURE_PUMP_STRENGTH 0.35 // [0.00 0.15 0.25 0.35 0.50 0.70 1.00] Automatic camcorder gain correction strength.
+#define CHROMA_KILLER // Briefly removes color when tracking lock becomes weak.
+#define CHROMA_KILLER_STRENGTH 0.65 // [0.00 0.25 0.50 0.65 0.80 1.00] Color loss during tracking and sync errors.
+#define VERTICAL_SYNC_GLITCH // Rare vertical rolls or short held-frame events.
+#define SYNC_GLITCH_FREQUENCY 0.04 // [0.00 0.02 0.04 0.08 0.14 0.22 0.35] Chance per four-second sync event cell.
+#define SYNC_GLITCH_STRENGTH 0.70 // [0.00 0.25 0.50 0.70 0.85 1.00] Roll distance and held-frame opacity.
+#define CHROMA_PERSISTENCE // Lets recorded color trail longer than luminance.
+#define CHROMA_PERSISTENCE_STRENGTH 0.20 // [0.00 0.05 0.10 0.15 0.20 0.30 0.45] Previous-frame color retained during movement.
+
 // Camera imperfections
 #define CHROMA_AMOUNT 4.0 // [0.0 0.5 1.0 1.5 2.5 4.0 6.0 9.0] Red/blue channel misalignment, in pixels.
 #define LENS_DISTORTION 0.040 // [0.000 0.008 0.015 0.025 0.040 0.060 0.085] Consumer CRT/camcorder barrel distortion.

@@ -45,9 +45,12 @@ Do not place the pack in `resourcepacks`; this is an Iris shader pack.
    occasional horizontal displacement.
 4. Stand still for 10-20 seconds. You should see brightness flutter, rolling
    tracking bands, grain, and brief static bursts.
-5. Resize the window or reload the pack. Iris recreates the history buffer, so
+5. Move between a bright exterior and dark corridor to test delayed automatic
+   exposure. Higher Sync Failure Frequency values make rolls and held fields
+   easier to verify without waiting for the deliberately rare default event.
+6. Resize the window or reload the pack. Iris recreates the history buffer, so
    temporal ghosting can take two frames to initialize.
-6. For an A/B check, use Iris's shader toggle while looking at a textured wall.
+7. For an A/B check, use Iris's shader toggle while looking at a textured wall.
    The VHS version should remain readable; only color should bleed broadly.
 
 For shader compile diagnostics, open the Iris shader selection screen and press
@@ -73,6 +76,22 @@ distortion and 4:3 cropping while producing a genuinely rectangular picture.
 **Luma Edge Ringing** controls the bright/dark horizontal outlines created by a
 cheap deck's sharpening circuit.
 
+The **Signal Instability** page contains four fully independent effects. Each
+has an on/off switch plus its own intensity or frequency control:
+
+- **Automatic Exposure Pump** meters five broad areas of the scene and reacts
+  through the previous processed frame, producing delayed gain changes in dark
+  and bright rooms.
+- **Tracking Color Killer** temporarily removes chroma during strong tracking
+  displacement or sync loss, like a VCR protecting an unstable color signal.
+- **Vertical Sync Failure** generates rare full-frame rolls or short held-field
+  events. The frequency defaults are intentionally low.
+- **Separate Chroma Persistence** keeps only the previous frame's color trail,
+  so saturation lingers longer than luminance on moving objects.
+
+The Subtle preset disables all four switches. Other presets enable them at
+different strengths, and every switch can be changed independently afterward.
+
 Every parameter is also defined near the top of
 `shaders/lib/settings.glsl`. Edit that file if you prefer direct control. All
 amounts documented as pixels are resolution-independent screen-pixel offsets.
@@ -82,7 +101,8 @@ so scanlines, grain, RGB separation, and virtual pixels remain visible on macOS.
 ## Pass layout
 
 - `composite`: applies the original heavy tape encode, camera drift, RGB split,
-  tracking damage, and temporal persistence to the Minecraft scene.
+  tracking damage, automatic gain pumping, sync failure, chroma loss, and
+  separate luma/chroma temporal persistence to the Minecraft scene.
 - `composite1`: copies the encoded image into persistent `colortex4` for the
   following frame's genuine moving-image ghost trail.
 - `final`: adds the second-generation VCR/CRT treatment, 4:3 overscan, further

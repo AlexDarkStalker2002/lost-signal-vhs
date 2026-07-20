@@ -9,6 +9,7 @@ profile.comment=Reference VHS matches the supplied real-tape screenshots without
 screen.FORMAT=Real VHS Capture
 screen.TAPE=Tape Damage
 screen.CAMERA=Camera Defects
+screen.SIGNAL=Signal Instability
 screen.COLOR=Color & Framing
 
 option.NOISE_STRENGTH=Tape Noise
@@ -21,6 +22,25 @@ option.GLITCH_STRENGTH=Tracking Glitch Distance
 option.GLITCH_STRENGTH.comment=Maximum horizontal displacement during a tracking tear.
 option.STATIC_FREQUENCY=Static Burst Frequency
 option.STATIC_FREQUENCY.comment=How often a short burst of interference overwhelms the image.
+
+option.AUTO_EXPOSURE=Automatic Exposure Pump
+option.AUTO_EXPOSURE.comment=Enables delayed whole-frame gain correction when entering darker or brighter spaces.
+option.EXPOSURE_PUMP_STRENGTH=Exposure Pump Strength
+option.EXPOSURE_PUMP_STRENGTH.comment=Controls how strongly the camcorder gain reacts to large brightness changes.
+option.CHROMA_KILLER=Tracking Color Killer
+option.CHROMA_KILLER.comment=Lets unstable tracking briefly suppress color while keeping luminance readable.
+option.CHROMA_KILLER_STRENGTH=Color Loss Strength
+option.CHROMA_KILLER_STRENGTH.comment=Controls how close severe tracking and sync errors get to monochrome.
+option.VERTICAL_SYNC_GLITCH=Vertical Sync Failure
+option.VERTICAL_SYNC_GLITCH.comment=Enables rare upward rolls or short frozen-frame events when the deck loses vertical lock.
+option.SYNC_GLITCH_FREQUENCY=Sync Failure Frequency
+option.SYNC_GLITCH_FREQUENCY.comment=Chance of a vertical roll or frame hold in each four-second event cell.
+option.SYNC_GLITCH_STRENGTH=Sync Failure Strength
+option.SYNC_GLITCH_STRENGTH.comment=Controls vertical roll distance and the opacity of held frames.
+option.CHROMA_PERSISTENCE=Separate Chroma Persistence
+option.CHROMA_PERSISTENCE.comment=Allows recorded color to linger longer than luminance on moving objects.
+option.CHROMA_PERSISTENCE_STRENGTH=Chroma Trail Strength
+option.CHROMA_PERSISTENCE_STRENGTH.comment=Controls how much previous-frame color remains during movement.
 
 option.CHROMA_AMOUNT=RGB Separation
 option.CHROMA_AMOUNT.comment=Offsets red and blue in opposite horizontal directions.

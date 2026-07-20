@@ -107,8 +107,28 @@ void main() {
     float trackingBand = pow(max(0.0, 1.0 - trackingDistance * 42.0), 3.0);
     glitchPixels += trackingBand * sin(time * 17.0) * GLITCH_STRENGTH * 0.22;
 
+    // A VCR that briefly loses vertical lock either rolls the raster or holds
+    // the last stable frame. One four-second event cell is sampled at a time,
+    // making low slider values genuinely rare rather than constant wobble.
+    float syncEvent = 0.0;
+    float syncFreeze = 0.0;
+    float syncRoll = 0.0;
+#ifdef VERTICAL_SYNC_GLITCH
+    float syncPhase = time * 0.25;
+    float syncTick = floor(syncPhase);
+    float syncWindow = 1.0 - step(0.14, fract(syncPhase));
+    syncEvent = step(1.0 - SYNC_GLITCH_FREQUENCY,
+                     hash21(vec2(syncTick, 241.7))) * syncWindow;
+    float syncChoice = step(0.52, hash21(vec2(syncTick, 92.3)));
+    float syncProgress = clamp(fract(syncPhase) / 0.14, 0.0, 1.0);
+    syncFreeze = syncEvent * syncChoice;
+    syncRoll = syncEvent * (1.0 - syncChoice)
+             * (0.10 + syncProgress * 0.90) * SYNC_GLITCH_STRENGTH;
+#endif
+
     vec2 uv = texcoord + (wobblePixels + jitterPixels) * pixel;
     uv.x += glitchPixels * pixel.x;
+    uv.y = mix(uv.y, fract(uv.y + syncRoll), step(0.0001, syncRoll));
 
     // -------------------------------------------------------------------------
     // Cheap-lens barrel distortion.
@@ -158,6 +178,42 @@ void main() {
     vec3 smearFront = texture2D(colortex0,
                                 clampUV(uv + smearOffset, pixel)).rgb;
     color = color * 0.78 + smearBack * 0.15 + smearFront * 0.07;
+
+    // Sparse whole-frame metering imitates a cheap camcorder's automatic gain
+    // circuit. The previous processed frame dominates the meter, so transitions
+    // into dark or bright rooms settle with a visible delayed pump instead of an
+    // instantaneous modern exposure correction.
+#ifdef AUTO_EXPOSURE
+    if (frameCounter > 2) {
+        vec3 meterWeights = vec3(0.299, 0.587, 0.114);
+        float currentMeter = dot(texture2D(colortex0, vec2(0.50, 0.50)).rgb,
+                                 meterWeights) * 0.36;
+        currentMeter += dot(texture2D(colortex0, vec2(0.24, 0.28)).rgb,
+                            meterWeights) * 0.16;
+        currentMeter += dot(texture2D(colortex0, vec2(0.76, 0.28)).rgb,
+                            meterWeights) * 0.16;
+        currentMeter += dot(texture2D(colortex0, vec2(0.24, 0.72)).rgb,
+                            meterWeights) * 0.16;
+        currentMeter += dot(texture2D(colortex0, vec2(0.76, 0.72)).rgb,
+                            meterWeights) * 0.16;
+
+        float historyMeter = dot(texture2D(colortex4, vec2(0.50, 0.50)).rgb,
+                                 meterWeights) * 0.36;
+        historyMeter += dot(texture2D(colortex4, vec2(0.24, 0.28)).rgb,
+                            meterWeights) * 0.16;
+        historyMeter += dot(texture2D(colortex4, vec2(0.76, 0.28)).rgb,
+                            meterWeights) * 0.16;
+        historyMeter += dot(texture2D(colortex4, vec2(0.24, 0.72)).rgb,
+                            meterWeights) * 0.16;
+        historyMeter += dot(texture2D(colortex4, vec2(0.76, 0.72)).rgb,
+                            meterWeights) * 0.16;
+
+        float adaptedMeter = mix(currentMeter, historyMeter, 0.82);
+        float exposureTarget = clamp(0.38 / max(adaptedMeter, 0.06),
+                                     0.72, 1.55);
+        color *= mix(1.0, exposureTarget, EXPOSURE_PUMP_STRENGTH);
+    }
+#endif
     color = gradeOldTape(color);
 
     // -------------------------------------------------------------------------
@@ -173,7 +229,41 @@ void main() {
         float adaptiveGhost = GHOST_STRENGTH
                             * mix(0.68, 1.22, smoothstep(0.04, 0.55, difference));
         color = mix(color, history, clamp(adaptiveGhost, 0.0, 0.45));
+
+#ifdef CHROMA_PERSISTENCE
+        // Preserve current luminance while borrowing only the old frame's color
+        // difference. Moving saturated objects therefore leave longer colored
+        // trails without turning the whole image into a conventional blur.
+        float currentLuma = dot(color, vec3(0.299, 0.587, 0.114));
+        float historyLuma = dot(history, vec3(0.299, 0.587, 0.114));
+        vec3 currentChroma = color - vec3(currentLuma);
+        vec3 historyChroma = history - vec3(historyLuma);
+        float chromaTrail = CHROMA_PERSISTENCE_STRENGTH
+                          * smoothstep(0.025, 0.45, difference);
+        color = vec3(currentLuma)
+              + mix(currentChroma, historyChroma, chromaTrail);
+#endif
+
+#ifdef VERTICAL_SYNC_GLITCH
+        // Recursive history makes the held field remain nearly frozen for the
+        // short event window, like a deck waiting to reacquire vertical sync.
+        vec3 heldFrame = texture2D(colortex4, clampUV(texcoord, pixel)).rgb;
+        float holdOpacity = syncFreeze
+                          * mix(0.40, 1.00, SYNC_GLITCH_STRENGTH);
+        color = mix(color, heldFrame, holdOpacity);
+#endif
     }
+
+#ifdef CHROMA_KILLER
+    // Consumer VCRs suppress unstable chroma instead of displaying wild color.
+    // Strong displaced bands, the rolling tracking line, and sync loss can all
+    // produce a brief monochrome patch while luminance remains readable.
+    float signalLoss = max(glitchBand, trackingBand * 0.72);
+    signalLoss = max(signalLoss, syncEvent * 0.68);
+    float colorKill = clamp(signalLoss * CHROMA_KILLER_STRENGTH, 0.0, 1.0);
+    float killedLuma = dot(color, vec3(0.299, 0.587, 0.114));
+    color = mix(color, vec3(killedLuma), colorKill);
+#endif
 
     // -------------------------------------------------------------------------
     // Exposure flicker: a fast uneven waveform plus frame-random flutter. The
