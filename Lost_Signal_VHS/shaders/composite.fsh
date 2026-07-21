@@ -14,6 +14,7 @@ uniform int frameCounter;
 varying vec2 texcoord;
 
 #include "/lib/settings.glsl"
+#include "/lib/analog_color.glsl"
 
 // Keep the history texture between frames. composite1 refreshes it at the end
 // of every frame. The frameCounter guard below avoids sampling it at startup.
@@ -155,9 +156,9 @@ void main() {
     uv = clampUV(uv, pixel);
 
     // -------------------------------------------------------------------------
-    // RGB separation and analog horizontal smear.
-    // Three main taps split the channels; two low-weight taps stretch highlights
-    // sideways like chroma/luma bandwidth loss on consumer VHS.
+    // First tape generation: luma/chroma bandwidth and horizontal smear.
+    // With YIQ enabled, color is encoded as a real brightness + two-color signal
+    // so broad chroma damage cannot accidentally soften luminance detail.
     // -------------------------------------------------------------------------
     float separationPixels = CHROMA_AMOUNT * (1.0 + glitchBand * 2.8
                                              + trackingBand * 0.45);
@@ -169,15 +170,51 @@ void main() {
     vec3 negativeSample = texture2D(colortex0,
                                     clampUV(uv - chromaOffset, pixel)).rgb;
 
-    // Red and blue drift in opposite directions while green remains the anchor.
-    vec3 color = vec3(positiveSample.r, centerSample.g, negativeSample.b);
-
     vec2 smearOffset = vec2(MOTION_SMEAR * pixel.x, 0.0);
     vec3 smearBack = texture2D(colortex0,
                                clampUV(uv - smearOffset * 2.0, pixel)).rgb;
     vec3 smearFront = texture2D(colortex0,
                                 clampUV(uv + smearOffset, pixel)).rgb;
+
+    vec3 color;
+#ifdef YIQ_SIGNAL
+    vec3 centerYiq = rgbToYiq(centerSample);
+    vec3 positiveYiq = rgbToYiq(positiveSample);
+    vec3 negativeYiq = rgbToYiq(negativeSample);
+    vec3 smearBackYiq = rgbToYiq(smearBack);
+    vec3 smearFrontYiq = rgbToYiq(smearFront);
+
+    // Luma retains much more bandwidth than tape chroma. I and Q use slightly
+    // different asymmetric filters, producing the characteristic rightward
+    // color tail instead of a clean modern Gaussian blur.
+    float tapeY = centerYiq.x * 0.78
+                + smearBackYiq.x * 0.15
+                + smearFrontYiq.x * 0.07;
+    float tapeI = centerYiq.y * 0.38
+                + positiveYiq.y * 0.21
+                + negativeYiq.y * 0.15
+                + smearBackYiq.y * 0.18
+                + smearFrontYiq.y * 0.08;
+    float tapeQ = centerYiq.z * 0.27
+                + positiveYiq.z * 0.17
+                + negativeYiq.z * 0.13
+                + smearBackYiq.z * 0.29
+                + smearFrontYiq.z * 0.14;
+
+    // Per-line phase error gets much stronger when tracking lock is weak. This
+    // rotates hue in signal space instead of applying an arbitrary RGB overlay.
+    float firstChromaLine = floor(texcoord.y * 240.0);
+    float firstPhaseNoise = hash21(vec2(firstChromaLine, floor(time * 8.0))) - 0.5;
+    firstPhaseNoise += sin(texcoord.y * 43.0 + time * 1.17) * 0.22;
+    float firstPhaseAngle = firstPhaseNoise * CHROMA_PHASE_ERROR * 0.65;
+    firstPhaseAngle += glitchBand * glitchDirection * CHROMA_PHASE_ERROR * 0.75;
+    vec2 tapeChroma = rotateChroma(vec2(tapeI, tapeQ), firstPhaseAngle);
+    color = yiqToRgb(vec3(tapeY, tapeChroma));
+#else
+    // Legacy RGB mode is kept as an option for comparison and older hardware.
+    color = vec3(positiveSample.r, centerSample.g, negativeSample.b);
     color = color * 0.78 + smearBack * 0.15 + smearFront * 0.07;
+#endif
 
     // Sparse whole-frame metering imitates a cheap camcorder's automatic gain
     // circuit. The previous processed frame dominates the meter, so transitions
@@ -234,6 +271,14 @@ void main() {
         // Preserve current luminance while borrowing only the old frame's color
         // difference. Moving saturated objects therefore leave longer colored
         // trails without turning the whole image into a conventional blur.
+#ifdef YIQ_SIGNAL
+        vec3 currentYiq = rgbToYiq(color);
+        vec3 historyYiq = rgbToYiq(history);
+        float chromaTrail = CHROMA_PERSISTENCE_STRENGTH
+                          * smoothstep(0.025, 0.45, difference);
+        currentYiq.yz = mix(currentYiq.yz, historyYiq.yz, chromaTrail);
+        color = yiqToRgb(currentYiq);
+#else
         float currentLuma = dot(color, vec3(0.299, 0.587, 0.114));
         float historyLuma = dot(history, vec3(0.299, 0.587, 0.114));
         vec3 currentChroma = color - vec3(currentLuma);
@@ -242,6 +287,7 @@ void main() {
                           * smoothstep(0.025, 0.45, difference);
         color = vec3(currentLuma)
               + mix(currentChroma, historyChroma, chromaTrail);
+#endif
 #endif
 
 #ifdef VERTICAL_SYNC_GLITCH
@@ -261,8 +307,14 @@ void main() {
     float signalLoss = max(glitchBand, trackingBand * 0.72);
     signalLoss = max(signalLoss, syncEvent * 0.68);
     float colorKill = clamp(signalLoss * CHROMA_KILLER_STRENGTH, 0.0, 1.0);
+#ifdef YIQ_SIGNAL
+    vec3 killerYiq = rgbToYiq(color);
+    killerYiq.yz *= 1.0 - colorKill;
+    color = yiqToRgb(killerYiq);
+#else
     float killedLuma = dot(color, vec3(0.299, 0.587, 0.114));
     color = mix(color, vec3(killedLuma), colorKill);
+#endif
 #endif
 
     // -------------------------------------------------------------------------
