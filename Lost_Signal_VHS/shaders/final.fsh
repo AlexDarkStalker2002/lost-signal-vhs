@@ -12,6 +12,7 @@ uniform int frameCounter;
 varying vec2 texcoord;
 
 #include "/lib/settings.glsl"
+#include "/lib/analog_color.glsl"
 
 const float PI = 3.14159265358979323846;
 
@@ -21,22 +22,6 @@ float hash21(vec2 p) {
 
 vec2 safeUV(vec2 uv, vec2 pixel) {
     return clamp(uv, pixel * 2.0, vec2(1.0) - pixel * 2.0);
-}
-
-vec3 rgbToYiq(vec3 rgb) {
-    return vec3(
-        dot(rgb, vec3(0.299, 0.587, 0.114)),
-        dot(rgb, vec3(0.596, -0.274, -0.322)),
-        dot(rgb, vec3(0.211, -0.523, 0.312))
-    );
-}
-
-vec3 yiqToRgb(vec3 yiq) {
-    return vec3(
-        yiq.x + 0.956 * yiq.y + 0.621 * yiq.z,
-        yiq.x - 0.272 * yiq.y - 0.647 * yiq.z,
-        yiq.x - 1.106 * yiq.y + 1.703 * yiq.z
-    );
 }
 
 // -----------------------------------------------------------------------------
@@ -312,8 +297,8 @@ void main() {
                         + (tapeLuma - delayedLuma) * 0.24;
     tapeLuma += lumaOvershoot * LUMA_RINGING;
 
-    // Low chroma bandwidth without a fragile render-buffer conversion. Broad
-    // asymmetric color taps are combined with the sharper luminance signal.
+    // Broad asymmetric chroma taps reproduce the much lower color bandwidth of
+    // VHS. The YIQ path keeps brightness sharp while I and Q smear differently.
     vec2 bleed = vec2((CHROMA_BLEED + CHROMA_AMOUNT * 0.50)
                       * displayScale * pixel.x, 0.0);
     float chromaLine = floor(frameUv.y * 240.0);
@@ -322,18 +307,65 @@ void main() {
     vec2 chromaDrift = vec2(chromaPhase * (0.9 + CHROMA_AMOUNT * 0.22)
                             * displayScale * pixel.x, 0.0);
     vec2 chromaUv = safeUV(sourceUv + chromaDrift, pixel);
+    vec2 splitOffset = vec2(CHROMA_AMOUNT * displayScale * pixel.x, 0.0);
+
+    vec3 color;
+#ifdef YIQ_SIGNAL
+    vec3 chromaCenter = rgbToYiq(texture2D(colortex0, chromaUv).rgb);
+    vec3 chromaBack1 = rgbToYiq(texture2D(
+        colortex0, safeUV(chromaUv - bleed, pixel)).rgb);
+    vec3 chromaFront1 = rgbToYiq(texture2D(
+        colortex0, safeUV(chromaUv + bleed, pixel)).rgb);
+    vec3 chromaBack2 = rgbToYiq(texture2D(
+        colortex0, safeUV(chromaUv - bleed * 2.0, pixel)).rgb);
+    vec3 chromaFront2 = rgbToYiq(texture2D(
+        colortex0, safeUV(chromaUv + bleed * 2.0, pixel)).rgb);
+
+    // I retains a little more detail than Q. Both filters trail predominantly
+    // to the right because earlier samples remain in the color-under delay line.
+    float tapeI = chromaCenter.y * 0.30
+                + chromaBack1.y * 0.26
+                + chromaFront1.y * 0.18
+                + chromaBack2.y * 0.17
+                + chromaFront2.y * 0.09;
+    float tapeQ = chromaCenter.z * 0.20
+                + chromaBack1.z * 0.18
+                + chromaFront1.z * 0.13
+                + chromaBack2.z * 0.31
+                + chromaFront2.z * 0.18;
+
+    // A small I/Q timing split replaces the legacy RGB offset. It produces color
+    // fringes while leaving the reconstructed Y channel spatially undisturbed.
+    vec3 splitPositiveYiq = rgbToYiq(texture2D(
+        colortex0, safeUV(chromaUv + splitOffset, pixel)).rgb);
+    vec3 splitNegativeYiq = rgbToYiq(texture2D(
+        colortex0, safeUV(chromaUv - splitOffset, pixel)).rgb);
+    float splitMix = clamp(CHROMA_AMOUNT / 9.0, 0.0, 1.0) * 0.30;
+    vec2 tapeChroma = mix(vec2(tapeI, tapeQ),
+                          vec2(splitPositiveYiq.y, splitNegativeYiq.z),
+                          splitMix);
+
+    // Line timing, tracking tears, and the rolling tracking band disturb the
+    // color-subcarrier phase. Rotating I/Q yields authentic crawling hue error.
+    float phaseAngle = CHROMA_PHASE_ERROR
+                     * (chromaPhase * 1.35
+                        + glitchBand * glitchDirection * 0.90
+                        + trackingBand * sin(time * 11.0) * 0.55);
+    tapeChroma = rotateChroma(tapeChroma, phaseAngle);
+    color = yiqToRgb(vec3(tapeLuma,
+                          tapeChroma * COLOR_SATURATION));
+#else
+    // Legacy RGB-residual path is available by disabling Signal-Accurate YIQ.
     vec3 chromaImage = texture2D(colortex0, chromaUv).rgb * 0.34;
     chromaImage += texture2D(colortex0, safeUV(chromaUv - bleed, pixel)).rgb * 0.25;
     chromaImage += texture2D(colortex0, safeUV(chromaUv + bleed, pixel)).rgb * 0.19;
     chromaImage += texture2D(colortex0, safeUV(chromaUv - bleed * 2.0, pixel)).rgb * 0.13;
     chromaImage += texture2D(colortex0, safeUV(chromaUv + bleed * 2.0, pixel)).rgb * 0.09;
     float chromaLuma = dot(chromaImage, vec3(0.299, 0.587, 0.114));
-    vec3 color = vec3(tapeLuma)
-               + (chromaImage - vec3(chromaLuma)) * COLOR_SATURATION;
+    color = vec3(tapeLuma)
+          + (chromaImage - vec3(chromaLuma)) * COLOR_SATURATION;
 
-    // Direct R/B displacement adds cheap-camera color fringing while preserving
-    // the luminance reconstructed above.
-    vec2 splitOffset = vec2(CHROMA_AMOUNT * displayScale * pixel.x, 0.0);
+    // Direct R/B displacement recreates the pack's original fringing behavior.
     vec3 splitRgb = vec3(
         texture2D(colortex0, safeUV(chromaUv + splitOffset, pixel)).r,
         center.g,
@@ -342,6 +374,7 @@ void main() {
     float splitLuma = dot(splitRgb, vec3(0.299, 0.587, 0.114));
     color += (splitRgb - vec3(splitLuma))
            * clamp(CHROMA_AMOUNT / 9.0, 0.0, 1.0) * 0.42;
+#endif
 
     // One-frame-independent spatial echo is the stable 1.21.11 substitute for
     // persistent history. It leaves a soft trail on high-contrast moving edges.
@@ -359,10 +392,20 @@ void main() {
                                 + vec2(frame * 0.71, 43.1)) - 0.5;
     float chromaNoiseQ = hash21(noiseCell * vec2(0.29, 1.0)
                                 + vec2(frame * 0.53, 91.7)) - 0.5;
-    color += vec3(grain * NOISE_STRENGTH * 0.54
-                  + lineNoise * NOISE_STRENGTH * 0.17);
+    float tapeNoiseY = grain * NOISE_STRENGTH * 0.54
+                     + lineNoise * NOISE_STRENGTH * 0.17;
+#ifdef YIQ_SIGNAL
+    // Noise is injected into the same signal components as the recorded image:
+    // fine Y grain remains crisp while I/Q noise forms softer colored blotches.
+    vec3 tapeNoiseYiq = vec3(tapeNoiseY,
+                             chromaNoiseI * NOISE_STRENGTH * 0.12,
+                             chromaNoiseQ * NOISE_STRENGTH * 0.16);
+    color += yiqToRgb(tapeNoiseYiq);
+#else
+    color += vec3(tapeNoiseY);
     color += vec3(chromaNoiseI, -chromaNoiseI * 0.36, chromaNoiseQ)
            * NOISE_STRENGTH * 0.18;
+#endif
 
     // Real capture grade: muted contrast, weak blue response, and green cast.
     color *= mix(vec3(1.0), vec3(0.94, 1.12, 0.72), TINT_STRENGTH * 0.92);

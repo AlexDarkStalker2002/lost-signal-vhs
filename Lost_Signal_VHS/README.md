@@ -3,7 +3,9 @@
 An Iris shader pack for Minecraft Java Edition that turns the vanilla scene into
 cheap, unstable found footage: scanlines, tape grain, tracking tears, color
 bleeding, camcorder lens distortion, flicker, temporal ghosting, frame jitter,
-and a yellow-green security-camera grade.
+and a yellow-green security-camera grade. Its optional signal-accurate YIQ path
+processes brightness and analog color independently instead of applying a
+generic RGB blur.
 
 The pack is deliberately a post-processing pack. It keeps Minecraft's normal
 lighting and applies the VHS treatment after the world is rendered, so it is
@@ -52,6 +54,9 @@ Do not place the pack in `resourcepacks`; this is an Iris shader pack.
    temporal ghosting can take two frames to initialize.
 7. For an A/B check, use Iris's shader toggle while looking at a textured wall.
    The VHS version should remain readable; only color should bleed broadly.
+8. In **Signal Instability**, compare **Signal-Accurate YIQ** on and off while
+   looking at a sharp red or blue edge. YIQ mode should keep the brightness edge
+   legible while its color trails horizontally and wobbles slightly between lines.
 
 For shader compile diagnostics, open the Iris shader selection screen and press
 `Ctrl+D` on Windows/Linux or `Cmd+D` on macOS to toggle Iris debug mode.
@@ -76,8 +81,13 @@ distortion and 4:3 cropping while producing a genuinely rectangular picture.
 **Luma Edge Ringing** controls the bright/dark horizontal outlines created by a
 cheap deck's sharpening circuit.
 
-The **Signal Instability** page contains four fully independent effects. Each
-has an on/off switch plus its own intensity or frequency control:
+The **Signal Instability** page contains five fully independent effects. Each
+has an on/off switch and/or its own intensity or frequency control:
+
+- **Signal-Accurate YIQ** converts RGB into separate Y brightness and I/Q color
+  components in both tape generations. I keeps slightly more detail than Q;
+  both smear asymmetrically, receive signal-space noise, and accumulate genuine
+  color-phase error. **Chroma Phase Wobble** controls that hue instability.
 
 - **Automatic Exposure Pump** meters five broad areas of the scene and reacts
   through the previous processed frame, producing delayed gain changes in dark
@@ -89,7 +99,7 @@ has an on/off switch plus its own intensity or frequency control:
 - **Separate Chroma Persistence** keeps only the previous frame's color trail,
   so saturation lingers longer than luminance on moving objects.
 
-The Subtle preset disables all four switches. Other presets enable them at
+The Subtle preset disables all five switches. Other presets enable them at
 different strengths, and every switch can be changed independently afterward.
 
 Every parameter is also defined near the top of
@@ -100,13 +110,13 @@ so scanlines, grain, RGB separation, and virtual pixels remain visible on macOS.
 
 ## Pass layout
 
-- `composite`: applies the original heavy tape encode, camera drift, RGB split,
-  tracking damage, automatic gain pumping, sync failure, chroma loss, and
-  separate luma/chroma temporal persistence to the Minecraft scene.
+- `composite`: applies the first tape encode, camera drift, optional YIQ
+  bandwidth loss and phase error, tracking damage, automatic gain pumping,
+  sync failure, chroma loss, and separate luma/chroma temporal persistence.
 - `composite1`: copies the encoded image into persistent `colortex4` for the
   following frame's genuine moving-image ghost trail.
-- `final`: adds the second-generation VCR/CRT treatment, 4:3 overscan, further
-  luma/chroma bandwidth loss, RF static, dropouts, head-switch tearing,
+- `final`: adds the second-generation VCR/CRT treatment, 4:3 overscan, explicit
+  low-bandwidth I/Q reconstruction, RF static, dropouts, head-switch tearing,
   alternating scan fields, grain, and the optional VCR OSD.
 
 This is intentionally the original heavy multi-pass look and is targeted at the

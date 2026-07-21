@@ -23,6 +23,10 @@ option.GLITCH_STRENGTH.comment=Maximum horizontal displacement during a tracking
 option.STATIC_FREQUENCY=Static Burst Frequency
 option.STATIC_FREQUENCY.comment=How often a short burst of interference overwhelms the image.
 
+option.YIQ_SIGNAL=Signal-Accurate YIQ
+option.YIQ_SIGNAL.comment=Encodes brightness and color separately so tape chroma can bleed, drift, and lose detail without blurring luminance.
+option.CHROMA_PHASE_ERROR=Chroma Phase Wobble
+option.CHROMA_PHASE_ERROR.comment=Controls line-dependent hue drift from an unstable analog color subcarrier. Has no effect when Signal-Accurate YIQ is disabled.
 option.AUTO_EXPOSURE=Automatic Exposure Pump
 option.AUTO_EXPOSURE.comment=Enables delayed whole-frame gain correction when entering darker or brighter spaces.
 option.EXPOSURE_PUMP_STRENGTH=Exposure Pump Strength

@@ -16,6 +16,8 @@
 
 // Signal instability. Every new behavior has its own toggle and intensity so
 // presets can use it without forcing it on custom configurations.
+#define YIQ_SIGNAL // Process color as a bandwidth-limited analog YIQ signal.
+#define CHROMA_PHASE_ERROR 0.35 // [0.00 0.10 0.20 0.35 0.50 0.70 1.00] Line-dependent hue wobble from unstable color phase.
 #define AUTO_EXPOSURE // Slowly pumps gain after large scene-brightness changes.
 #define EXPOSURE_PUMP_STRENGTH 0.35 // [0.00 0.15 0.25 0.35 0.50 0.70 1.00] Automatic camcorder gain correction strength.
 #define CHROMA_KILLER // Briefly removes color when tracking lock becomes weak.
