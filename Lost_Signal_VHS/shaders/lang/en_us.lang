@@ -12,6 +12,16 @@ screen.CAMERA=Camera Defects
 screen.SIGNAL=Signal Instability
 screen.COLOR=Color & Framing
 
+option.QUALITY_LEVEL=Render Quality
+option.QUALITY_LEVEL.comment=Performance removes optional texture taps, Balanced keeps the intended look, and Cinematic reserves the full filter for high-end GPUs.
+value.QUALITY_LEVEL.0=Performance
+value.QUALITY_LEVEL.1=Balanced
+value.QUALITY_LEVEL.2=Cinematic
+option.SIGNAL_STANDARD=Signal Standard
+option.SIGNAL_STANDARD.comment=Selects NTSC 480-line/59.94-field timing or PAL 576-line/50-field timing and alternating chroma phase.
+value.SIGNAL_STANDARD.0=NTSC
+value.SIGNAL_STANDARD.1=PAL
+
 option.NOISE_STRENGTH=Tape Noise
 option.NOISE_STRENGTH.comment=Fine monochrome grain, chroma noise, and sparse dropouts.
 option.SCANLINE_STRENGTH=Scanline Strength
@@ -60,6 +70,12 @@ option.MOTION_SMEAR=Analog Smear
 option.MOTION_SMEAR.comment=Horizontal blur and trailing radius in screen pixels.
 option.GHOST_STRENGTH=Temporal Ghosting
 option.GHOST_STRENGTH.comment=Retains part of the previous processed frame so movement leaves trails.
+option.HISTORY_STABILIZATION=History Stabilization
+option.HISTORY_STABILIZATION.comment=Rejects implausible previous-frame colors during fast camera turns while preserving smaller tape trails.
+option.SPATIAL_ECHO=Spatial Tape Echo
+option.SPATIAL_ECHO.comment=Adds a separate one-frame horizontal echo without increasing temporal persistence.
+option.SPATIAL_ECHO_STRENGTH=Spatial Echo Strength
+option.SPATIAL_ECHO_STRENGTH.comment=Controls the non-temporal high-contrast echo. Performance quality skips this effect.
 option.PIXEL_SCALE=Virtual Pixel Size
 option.PIXEL_SCALE.comment=Quantizes scene sampling while retaining the real display resolution.
 

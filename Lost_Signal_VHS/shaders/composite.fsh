@@ -171,10 +171,17 @@ void main() {
                                     clampUV(uv - chromaOffset, pixel)).rgb;
 
     vec2 smearOffset = vec2(MOTION_SMEAR * pixel.x, 0.0);
+#if QUALITY_LEVEL == 0
+    // Performance mode reuses existing taps instead of reading two additional
+    // luma-smear samples. The second tape generation still supplies softening.
+    vec3 smearBack = negativeSample;
+    vec3 smearFront = positiveSample;
+#else
     vec3 smearBack = texture2D(colortex0,
                                clampUV(uv - smearOffset * 2.0, pixel)).rgb;
     vec3 smearFront = texture2D(colortex0,
                                 clampUV(uv + smearOffset, pixel)).rgb;
+#endif
 
     vec3 color;
 #ifdef YIQ_SIGNAL
@@ -203,11 +210,16 @@ void main() {
 
     // Per-line phase error gets much stronger when tracking lock is weak. This
     // rotates hue in signal space instead of applying an arbitrary RGB overlay.
-    float firstChromaLine = floor(texcoord.y * 240.0);
+    float firstChromaLine = floor(texcoord.y * VHS_CHROMA_LINES);
     float firstPhaseNoise = hash21(vec2(firstChromaLine, floor(time * 8.0))) - 0.5;
     firstPhaseNoise += sin(texcoord.y * 43.0 + time * 1.17) * 0.22;
     float firstPhaseAngle = firstPhaseNoise * CHROMA_PHASE_ERROR * 0.65;
     firstPhaseAngle += glitchBand * glitchDirection * CHROMA_PHASE_ERROR * 0.75;
+#if SIGNAL_STANDARD == 1
+    // PAL alternates the color-subcarrier phase on neighboring lines, making
+    // slow hue drift less directional than the NTSC decoder path.
+    firstPhaseAngle *= mod(firstChromaLine, 2.0) * 2.0 - 1.0;
+#endif
     vec2 tapeChroma = rotateChroma(vec2(tapeI, tapeQ), firstPhaseAngle);
     color = yiqToRgb(vec3(tapeY, tapeChroma));
 #else
@@ -223,6 +235,14 @@ void main() {
 #ifdef AUTO_EXPOSURE
     if (frameCounter > 2) {
         vec3 meterWeights = vec3(0.299, 0.587, 0.114);
+#if QUALITY_LEVEL == 0
+        // Two taps instead of ten make automatic exposure inexpensive enough
+        // for integrated GPUs while preserving its delayed response.
+        float currentMeter = dot(texture2D(colortex0, vec2(0.50)).rgb,
+                                 meterWeights);
+        float historyMeter = dot(texture2D(colortex4, vec2(0.50)).rgb,
+                                 meterWeights);
+#else
         float currentMeter = dot(texture2D(colortex0, vec2(0.50, 0.50)).rgb,
                                  meterWeights) * 0.36;
         currentMeter += dot(texture2D(colortex0, vec2(0.24, 0.28)).rgb,
@@ -244,6 +264,7 @@ void main() {
                             meterWeights) * 0.16;
         historyMeter += dot(texture2D(colortex4, vec2(0.76, 0.72)).rgb,
                             meterWeights) * 0.16;
+#endif
 
         float adaptedMeter = mix(currentMeter, historyMeter, 0.82);
         float exposureTarget = clamp(0.38 / max(adaptedMeter, 0.06),
@@ -262,6 +283,15 @@ void main() {
         vec2 historyOffset = vec2(-0.65 * MOTION_SMEAR * pixel.x, 0.0);
         vec3 history = texture2D(colortex4,
                                  clampUV(texcoord + historyOffset, pixel)).rgb;
+
+        // Reject history colors that are implausibly far from the current
+        // processed frame. This limits full-screen double exposure during fast
+        // camera turns without removing the smaller differences that form tape
+        // trails on moving objects.
+        float historyRange = mix(1.0, 0.12, HISTORY_STABILIZATION);
+        history = clamp(history,
+                        color - vec3(historyRange),
+                        color + vec3(historyRange));
         float difference = length(color - history);
         float adaptiveGhost = GHOST_STRENGTH
                             * mix(0.68, 1.22, smoothstep(0.04, 0.55, difference));
@@ -333,7 +363,7 @@ void main() {
     // -------------------------------------------------------------------------
     vec2 noiseCell = floor(texcoord * resolution / max(1.0, PIXEL_SCALE));
     float grain = hash21(noiseCell + vec2(frame * 1.73, frame * 0.37)) - 0.5;
-    float lineNoise = hash21(vec2(floor(texcoord.y * viewHeight * 0.5),
+    float lineNoise = hash21(vec2(floor(texcoord.y * VHS_SIGNAL_LINES),
                                   floor(time * 29.0))) - 0.5;
     color += vec3(grain * NOISE_STRENGTH);
     color += vec3(lineNoise * NOISE_STRENGTH * 0.34);

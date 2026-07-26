@@ -281,8 +281,15 @@ void main() {
     vec3 center = texture2D(colortex0, sourceUv).rgb;
     vec3 lumaLeft1 = texture2D(colortex0, safeUV(sourceUv - blurX, pixel)).rgb;
     vec3 lumaRight1 = texture2D(colortex0, safeUV(sourceUv + blurX, pixel)).rgb;
+#if QUALITY_LEVEL < 2
+    // Performance and Balanced reuse the first-radius taps. Cinematic retains
+    // the complete outer filter for the most accurate delayed-luma ringing.
+    vec3 lumaLeft2 = lumaLeft1;
+    vec3 lumaRight2 = lumaRight1;
+#else
     vec3 lumaLeft2 = texture2D(colortex0, safeUV(sourceUv - blurX * 2.0, pixel)).rgb;
     vec3 lumaRight2 = texture2D(colortex0, safeUV(sourceUv + blurX * 2.0, pixel)).rgb;
+#endif
     vec3 lumaImage = center * 0.44;
     lumaImage += (lumaLeft1 + lumaRight1) * 0.18;
     lumaImage += (lumaLeft2 + lumaRight2) * 0.10;
@@ -301,7 +308,7 @@ void main() {
     // VHS. The YIQ path keeps brightness sharp while I and Q smear differently.
     vec2 bleed = vec2((CHROMA_BLEED + CHROMA_AMOUNT * 0.50)
                       * displayScale * pixel.x, 0.0);
-    float chromaLine = floor(frameUv.y * 240.0);
+    float chromaLine = floor(frameUv.y * VHS_CHROMA_LINES);
     float chromaPhase = hash21(vec2(chromaLine, floor(time * 8.0))) - 0.5;
     chromaPhase += sin(frameUv.y * 37.0 + time * 1.3) * 0.18;
     vec2 chromaDrift = vec2(chromaPhase * (0.9 + CHROMA_AMOUNT * 0.22)
@@ -316,10 +323,15 @@ void main() {
         colortex0, safeUV(chromaUv - bleed, pixel)).rgb);
     vec3 chromaFront1 = rgbToYiq(texture2D(
         colortex0, safeUV(chromaUv + bleed, pixel)).rgb);
+#if QUALITY_LEVEL < 2
+    vec3 chromaBack2 = chromaBack1;
+    vec3 chromaFront2 = chromaFront1;
+#else
     vec3 chromaBack2 = rgbToYiq(texture2D(
         colortex0, safeUV(chromaUv - bleed * 2.0, pixel)).rgb);
     vec3 chromaFront2 = rgbToYiq(texture2D(
         colortex0, safeUV(chromaUv + bleed * 2.0, pixel)).rgb);
+#endif
 
     // I retains a little more detail than Q. Both filters trail predominantly
     // to the right because earlier samples remain in the color-under delay line.
@@ -336,10 +348,15 @@ void main() {
 
     // A small I/Q timing split replaces the legacy RGB offset. It produces color
     // fringes while leaving the reconstructed Y channel spatially undisturbed.
+#if QUALITY_LEVEL < 2
+    vec3 splitPositiveYiq = chromaFront1;
+    vec3 splitNegativeYiq = chromaBack1;
+#else
     vec3 splitPositiveYiq = rgbToYiq(texture2D(
         colortex0, safeUV(chromaUv + splitOffset, pixel)).rgb);
     vec3 splitNegativeYiq = rgbToYiq(texture2D(
         colortex0, safeUV(chromaUv - splitOffset, pixel)).rgb);
+#endif
     float splitMix = clamp(CHROMA_AMOUNT / 9.0, 0.0, 1.0) * 0.30;
     vec2 tapeChroma = mix(vec2(tapeI, tapeQ),
                           vec2(splitPositiveYiq.y, splitNegativeYiq.z),
@@ -351,42 +368,68 @@ void main() {
                      * (chromaPhase * 1.35
                         + glitchBand * glitchDirection * 0.90
                         + trackingBand * sin(time * 11.0) * 0.55);
+#if SIGNAL_STANDARD == 1
+    phaseAngle *= mod(chromaLine, 2.0) * 2.0 - 1.0;
+#endif
     tapeChroma = rotateChroma(tapeChroma, phaseAngle);
     color = yiqToRgb(vec3(tapeLuma,
                           tapeChroma * COLOR_SATURATION));
 #else
     // Legacy RGB-residual path is available by disabling Signal-Accurate YIQ.
-    vec3 chromaImage = texture2D(colortex0, chromaUv).rgb * 0.34;
-    chromaImage += texture2D(colortex0, safeUV(chromaUv - bleed, pixel)).rgb * 0.25;
-    chromaImage += texture2D(colortex0, safeUV(chromaUv + bleed, pixel)).rgb * 0.19;
-    chromaImage += texture2D(colortex0, safeUV(chromaUv - bleed * 2.0, pixel)).rgb * 0.13;
-    chromaImage += texture2D(colortex0, safeUV(chromaUv + bleed * 2.0, pixel)).rgb * 0.09;
+    vec3 chromaCenterRgb = texture2D(colortex0, chromaUv).rgb;
+    vec3 chromaBack1Rgb = texture2D(
+        colortex0, safeUV(chromaUv - bleed, pixel)).rgb;
+    vec3 chromaFront1Rgb = texture2D(
+        colortex0, safeUV(chromaUv + bleed, pixel)).rgb;
+#if QUALITY_LEVEL < 2
+    vec3 chromaBack2Rgb = chromaBack1Rgb;
+    vec3 chromaFront2Rgb = chromaFront1Rgb;
+#else
+    vec3 chromaBack2Rgb = texture2D(
+        colortex0, safeUV(chromaUv - bleed * 2.0, pixel)).rgb;
+    vec3 chromaFront2Rgb = texture2D(
+        colortex0, safeUV(chromaUv + bleed * 2.0, pixel)).rgb;
+#endif
+    vec3 chromaImage = chromaCenterRgb * 0.34
+                     + chromaBack1Rgb * 0.25
+                     + chromaFront1Rgb * 0.19
+                     + chromaBack2Rgb * 0.13
+                     + chromaFront2Rgb * 0.09;
     float chromaLuma = dot(chromaImage, vec3(0.299, 0.587, 0.114));
     color = vec3(tapeLuma)
           + (chromaImage - vec3(chromaLuma)) * COLOR_SATURATION;
 
     // Direct R/B displacement recreates the pack's original fringing behavior.
+#if QUALITY_LEVEL < 2
+    vec3 splitRgb = vec3(chromaFront1Rgb.r, center.g, chromaBack1Rgb.b);
+#else
     vec3 splitRgb = vec3(
         texture2D(colortex0, safeUV(chromaUv + splitOffset, pixel)).r,
         center.g,
         texture2D(colortex0, safeUV(chromaUv - splitOffset, pixel)).b
     );
+#endif
     float splitLuma = dot(splitRgb, vec3(0.299, 0.587, 0.114));
     color += (splitRgb - vec3(splitLuma))
            * clamp(CHROMA_AMOUNT / 9.0, 0.0, 1.0) * 0.42;
 #endif
 
-    // One-frame-independent spatial echo is the stable 1.21.11 substitute for
-    // persistent history. It leaves a soft trail on high-contrast moving edges.
+    // Spatial tape echo is independent from temporal history. Performance mode
+    // removes this optional tap entirely; Balanced and Cinematic keep it as a
+    // separately adjustable high-contrast horizontal echo.
+#if QUALITY_LEVEL > 0
+#ifdef SPATIAL_ECHO
     vec2 echoOffset = vec2((MOTION_SMEAR + 1.0) * displayScale * pixel.x, 0.0);
     vec3 echoRgb = texture2D(colortex0, safeUV(sourceUv - echoOffset, pixel)).rgb;
-    color = mix(color, echoRgb, clamp(GHOST_STRENGTH * 0.42, 0.0, 0.18));
+    color = mix(color, echoRgb, clamp(SPATIAL_ECHO_STRENGTH, 0.0, 0.25));
+#endif
+#endif
 
     // Signal-domain-looking coarse luma and colored chroma noise.
-    vec2 noiseCell = floor(frameUv * vec2(480.0, 480.0)
+    vec2 noiseCell = floor(frameUv * vec2(VHS_SIGNAL_LINES)
                            / max(1.0, PIXEL_SCALE * 0.70));
     float grain = hash21(noiseCell + vec2(frame * 1.91, frame * 0.43)) - 0.5;
-    float lineNoise = hash21(vec2(floor(frameUv.y * 480.0),
+    float lineNoise = hash21(vec2(floor(frameUv.y * VHS_SIGNAL_LINES),
                                   floor(time * 31.0))) - 0.5;
     float chromaNoiseI = hash21(noiseCell * vec2(0.37, 1.0)
                                 + vec2(frame * 0.71, 43.1)) - 0.5;
@@ -422,10 +465,10 @@ void main() {
                       + (hash21(vec2(frame, 31.0)) - 0.5) * 0.90;
     color *= 1.0 + flickerWave * FLICKER_STRENGTH;
 
-    // Alternate field parity every frame. This reads as interlaced analog video
-    // instead of a stationary digital CRT overlay.
-    float tapeLine = floor(frameUv.y * 480.0);
-    float fieldParity = mod(frame, 2.0);
+    // Field parity follows the selected analog standard instead of the game's
+    // frame rate: 59.94 fields/s for NTSC or 50 fields/s for PAL.
+    float tapeLine = floor(frameUv.y * VHS_SIGNAL_LINES);
+    float fieldParity = mod(floor(time * VHS_FIELD_RATE), 2.0);
     float fieldLine = mod(tapeLine + fieldParity, 2.0);
     float fineScan = 0.5 + 0.5 * sin(frameUv.y * viewHeight / displayScale * PI);
     color *= 1.0 - SCANLINE_STRENGTH

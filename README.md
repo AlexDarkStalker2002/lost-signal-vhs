@@ -19,9 +19,8 @@ distortion, sync failures, and a proper signal-space YIQ pipeline.
   </a>
 </p>
 
-![Minecraft 26.2](https://img.shields.io/badge/Minecraft-26.2-62B47A?style=flat-square)
-![Minecraft 1.21.4](https://img.shields.io/badge/Minecraft-1.21.4-62B47A?style=flat-square)
-![Iris 1.11.2](https://img.shields.io/badge/Iris-1.11.2-5C6BC0?style=flat-square)
+![Minecraft 1.20.1–26.2](https://img.shields.io/badge/Minecraft-1.20.1%E2%80%9326.2-62B47A?style=flat-square)
+![Iris](https://img.shields.io/badge/Iris-1.7.6%2B-5C6BC0?style=flat-square)
 ![OptiFine compatible](https://img.shields.io/badge/OptiFine-Compatible-EF6C00?style=flat-square)
 ![MIT License](https://img.shields.io/badge/License-MIT-E7B416?style=flat-square)
 
@@ -38,9 +37,13 @@ placing a noise texture over the screen.
 - Tracking tears, head-switch noise, frame jitter, and curved overscan
 - Chroma bleed, RGB separation, phase wobble, and YIQ color processing
 - Persistent temporal ghosting using the previous processed frame
+- History stabilization that keeps trails without full-screen double exposure
+- Performance, Balanced, and Cinematic render-quality modes
+- Selectable NTSC and PAL signal timing
 - Delayed automatic exposure, sync failures, and tracking color loss
 - Six presets plus individual controls for every major effect
 - Overworld, Nether, and End support without dimension-specific shaders
+- English and Russian settings menus
 
 ## Gallery
 
@@ -61,11 +64,14 @@ placing a noise texture over the screen.
 
 ## Compatibility
 
-| Minecraft | Shader loader | Graphics backend | Status |
+| Minecraft | Recommended Iris line | Graphics backend | Status |
 |---|---|---|---|
 | Java Edition 26.2 | Iris 1.11.2 with Sodium | OpenGL | Supported |
+| Java Edition 26.1.2 | Iris 1.11.2 with Sodium | OpenGL | Supported |
+| Java Edition 1.21.11 | Iris 1.10.7 with Sodium | OpenGL | Supported |
 | Java Edition 1.21.4 | Iris 1.8.8 with Sodium | OpenGL | Supported |
-| Compatible versions | OptiFine | OpenGL | Supported |
+| Java Edition 1.21.1 | Iris 1.8.12 with Sodium | OpenGL | Supported |
+| Java Edition 1.20.1 | Iris 1.7.6 with Sodium | OpenGL | Supported |
 
 > [!IMPORTANT]
 > Iris is not compatible with Minecraft 26.2's Vulkan backend. Keep
@@ -74,7 +80,7 @@ placing a noise texture over the screen.
 
 ## Quick installation
 
-1. Download [`Lost_Signal_VHS_v1.1_MC26.2.zip`](Lost_Signal_VHS_v1.1_MC26.2.zip).
+1. Download [`Lost_Signal_VHS_v1.2_Universal.zip`](Lost_Signal_VHS_v1.2_Universal.zip).
 2. Put the ZIP into Minecraft's `shaderpacks` directory.
 3. Start Minecraft with Iris.
 4. Open **Options → Video Settings → Shader Packs**.
@@ -102,12 +108,22 @@ No resource pack, external texture, or compute-shader support is required.
 Every preset is only a starting point. Open **Shader Pack Settings** to tune
 the tape, camera, signal, format, and color groups independently.
 
+## Quality and signal modes
+
+- **Performance** reuses existing luma/chroma taps, reduces auto-exposure
+  metering from ten samples to two, and skips the optional spatial echo.
+- **Balanced** reuses the outer second-generation taps while preserving the
+  intended reference look; it is the default.
+- **Cinematic** keeps the complete multi-radius filter path for high-end GPUs.
+- **NTSC** uses 480-line, 59.94-field timing and stronger directional hue drift.
+- **PAL** uses 576-line, 50-field timing with alternating chroma phase.
+
 ## Repository layout
 
 - [`Lost_Signal_VHS/`](Lost_Signal_VHS/) — editable shader-pack source
 - [`Lost_Signal_VHS/shaders/lib/settings.glsl`](Lost_Signal_VHS/shaders/lib/settings.glsl) — direct effect controls
 - [`Lost_Signal_VHS/README.md`](Lost_Signal_VHS/README.md) — technical notes and testing checklist
-- [`Lost_Signal_VHS_v1.1_MC26.2.zip`](Lost_Signal_VHS_v1.1_MC26.2.zip) — ready-to-install release
+- [`Lost_Signal_VHS_v1.2_Universal.zip`](Lost_Signal_VHS_v1.2_Universal.zip) — ready-to-install universal release
 
 ## License
 
