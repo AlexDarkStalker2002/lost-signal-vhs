@@ -14,20 +14,26 @@ specific shader files.
 
 ## Requirements
 
-- Minecraft Java Edition
-- Iris Shaders (normally installed together with Sodium)
-- OpenGL 2.1-class shader support or newer
+- Minecraft Java Edition 26.2 with Iris 1.11.2 and Sodium
+- Minecraft Java Edition 1.21.4 with Iris 1.8.8 remains supported
+- The OpenGL graphics backend
 
 No resource pack, noise texture, or compute-shader support is required.
+
+Minecraft 26.2 introduced an experimental Vulkan backend, but Iris is not
+compatible with Vulkan. Leave **Graphics API** on **Default** (OpenGL in the
+26.2 release) or select **Prefer OpenGL** before starting the game with Iris.
 
 ## Installation
 
 1. Copy the `Lost_Signal_VHS` folder, or its ZIP file, into Minecraft's
    `shaderpacks` directory.
-2. Start Minecraft with Iris.
-3. Open **Options > Video Settings > Shader Packs**.
-4. Select **Lost Signal VHS** and apply it.
-5. Open **Shader Pack Settings** to choose a preset or tune individual effects.
+2. On Minecraft 26.2, open **Video Settings > Graphics API** and choose
+   **Default** or **Prefer OpenGL**. Restart the game if the setting changes.
+3. Start Minecraft with Iris 1.11.2.
+4. Open **Options > Video Settings > Shader Packs**.
+5. Select **Lost Signal VHS** and apply it.
+6. Open **Shader Pack Settings** to choose a preset or tune individual effects.
 
 Typical shader-pack directories:
 
@@ -119,10 +125,19 @@ so scanlines, grain, RGB separation, and virtual pixels remain visible on macOS.
   low-bandwidth I/Q reconstruction, RF static, dropouts, head-switch tearing,
   alternating scan fields, grain, and the optional VCR OSD.
 
-This is intentionally the original heavy multi-pass look and is targeted at the
-dedicated Minecraft 1.21.4 / Iris 1.8.8 profile. It uses one persistent RGBA
-history buffer plus a second playback-generation pass. The actual game and
-output resolution are never reduced.
+This is intentionally the original heavy multi-pass look. Version 1.1 targets
+Minecraft 26.2 with Iris 1.11.2 while retaining compatibility with the original
+Minecraft 1.21.4 / Iris 1.8.8 setup. It uses one persistent RGBA history buffer
+plus a second playback-generation pass. The actual game and output resolution
+are never reduced.
+
+## Version 1.1
+
+- Added Minecraft Java Edition 26.2 and Iris 1.11.2 compatibility metadata.
+- Documented the required OpenGL graphics backend for Minecraft 26.2.
+- Kept the stable GLSL 1.20 composite pipeline for Iris and OptiFine shader-pack
+  compatibility.
+- Retained Minecraft 1.21.4 support and all existing presets.
 
 ## Design references
 
