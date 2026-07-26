@@ -1,15 +1,18 @@
 profile.Reference_VHS=Reference VHS
 profile.Real_VHS=Real VHS
 profile.Backrooms=Backrooms
+profile.Poolrooms=Poolrooms
+profile.Liminal_Night=Liminal Night
 profile.Subtle=Subtle
 profile.Found_Footage=Found Footage
 profile.Damaged_Tape=Damaged Tape
-profile.comment=Reference VHS matches the supplied real-tape screenshots without text. Backrooms is softer, Found Footage is dirtier, and Damaged Tape is heavily degraded.
+profile.comment=Eleven looks from clean VHS and liminal spaces to Rental Tape, Camcorder 1996, and the severe Broken Signal transport failure.
 
 screen.FORMAT=Real VHS Capture
 screen.TAPE=Tape Damage
 screen.CAMERA=Camera Defects
 screen.SIGNAL=Signal Instability
+screen.LIMINAL=Liminal Lighting
 screen.COLOR=Color & Framing
 
 option.QUALITY_LEVEL=Render Quality
@@ -81,6 +84,21 @@ option.SPATIAL_ECHO_STRENGTH.comment=Controls the non-temporal high-contrast ech
 option.PIXEL_SCALE=Virtual Pixel Size
 option.PIXEL_SCALE.comment=Quantizes scene sampling while retaining the real display resolution.
 
+option.LIMINAL_MODE=Liminal Color Space
+option.LIMINAL_MODE.comment=Selects no added grade, yellow-green Backrooms lamps, cyan Poolrooms reflections, or underexposed Liminal Night lighting.
+value.LIMINAL_MODE.0=Off
+value.LIMINAL_MODE.1=Backrooms
+value.LIMINAL_MODE.2=Poolrooms
+value.LIMINAL_MODE.3=Liminal Night
+option.FLUORESCENT_FLICKER=Fluorescent Flicker
+option.FLUORESCENT_FLICKER.comment=Adds a rolling mains band, unstable ballast flutter, and occasional soft brownouts.
+option.WHITE_BALANCE_DRIFT=White-Balance Drift
+option.WHITE_BALANCE_DRIFT.comment=Lets cheap camcorder white balance hunt slowly between warm and cool under artificial light.
+option.EXPOSURE_HUNT_STRENGTH=Exposure Hunting
+option.EXPOSURE_HUNT_STRENGTH.comment=Adds slow gain breathing that becomes more visible in empty dark spaces.
+option.LIMINAL_HAZE=Liminal Haze
+option.LIMINAL_HAZE.comment=Adds veiling glare and lifted air around artificial highlights without world-space fog.
+
 option.WASHOUT_STRENGTH=Color Washout
 option.WASHOUT_STRENGTH.comment=Reduces saturation and contrast, lifts black, and softens highlights.
 option.TINT_STRENGTH=Security Tint
@@ -121,3 +139,56 @@ option.HALATION_STRENGTH=Fluorescent Halation
 option.HALATION_STRENGTH.comment=Adds soft sensor and tape glow around clipped lights without using modern cinematic bloom.
 option.LUMA_RINGING=Luma Edge Ringing
 option.LUMA_RINGING.comment=Adds bright and dark horizontal edge echoes from a cheap VCR sharpening circuit.
+
+profile.Rental_Tape=Rental Tape
+profile.Camcorder_1996=Camcorder 1996
+profile.Broken_Signal=Broken Signal
+
+screen.GENERATION=Tape Generation
+screen.CAMCORDER=Camcorder
+screen.BROKEN=Broken Signal
+
+option.TAPE_FORMAT=Tape Format
+option.TAPE_FORMAT.comment=Selects the recording speed and cassette character that determine effective luma and chroma bandwidth.
+value.TAPE_FORMAT.0=VHS SP
+value.TAPE_FORMAT.1=VHS LP
+value.TAPE_FORMAT.2=VHS SLP
+value.TAPE_FORMAT.3=VHS-C
+value.TAPE_FORMAT.4=Worn Rental
+option.GENERATION_LOSS=Copy Generation
+option.GENERATION_LOSS.comment=Compounds color loss, crosstalk, luma quantization, and noise as if the tape had been copied repeatedly.
+value.GENERATION_LOSS.0=Master
+value.GENERATION_LOSS.1=1st Copy
+value.GENERATION_LOSS.2=2nd Copy
+value.GENERATION_LOSS.3=3rd Copy
+value.GENERATION_LOSS.4=4th Copy
+value.GENERATION_LOSS.5=5th Copy
+option.TAPE_WEAR=Tape Wear
+option.TAPE_WEAR.comment=Adds oxide fading, desaturated line wear, and low-level generation noise.
+
+option.CAMCORDER_ERA=Camera Era
+option.CAMCORDER_ERA.comment=Selects the color response of a neutral source, 1980s tube camera, 1990s VHS camcorder, or early digital camcorder.
+value.CAMCORDER_ERA.0=Neutral
+value.CAMCORDER_ERA.1=1980s Tube
+value.CAMCORDER_ERA.2=1990s VHS
+value.CAMCORDER_ERA.3=Early Digital
+option.CAMCORDER_HUD=Camcorder HUD
+option.CAMCORDER_HUD.comment=Records a blinking REC lamp, battery meter, and running MM:SS timecode into the image.
+option.DIGITAL_ZOOM=Digital Zoom
+option.DIGITAL_ZOOM.comment=Enlarges the center of the camera image before tape damage is applied.
+suffix.DIGITAL_ZOOM=x
+option.FOCUS_HUNT_STRENGTH=Autofocus Hunting
+option.FOCUS_HUNT_STRENGTH.comment=Adds slow correlated focus misses and recovery from a consumer autofocus system.
+
+option.TRACKING_CONTROL=Manual Tracking
+option.TRACKING_CONTROL.comment=Moves the rolling mistracking band and biases its horizontal displacement like a VCR tracking dial.
+option.RF_INTERFERENCE_STRENGTH=RF Interference
+option.RF_INTERFERENCE_STRENGTH.comment=Adds diagonal herringbone carriers and slowly rolling bright radio-interference bands.
+option.TAPE_CHEW_STRENGTH=Tape Chew
+option.TAPE_CHEW_STRENGTH.comment=Adds rare broad buckled-tape events with warped scan lines and concentrated static.
+option.FRAME_REPEAT=Frame Repetition
+option.FRAME_REPEAT.comment=Allows a transport stall to repeat the previous fully processed frame.
+option.FRAME_REPEAT_FREQUENCY=Repeat Frequency
+option.FRAME_REPEAT_FREQUENCY.comment=Chance of a repeated-frame event in each transport event cell.
+option.FRAME_REPEAT_STRENGTH=Repeat Strength
+option.FRAME_REPEAT_STRENGTH.comment=Controls how completely the previous frame replaces the current image during a stall.
