@@ -64,6 +64,18 @@ placing a noise texture over the screen.
   </tr>
 </table>
 
+## Backrooms and analog horror
+
+Lost Signal VHS is designed for **Backrooms maps, liminal spaces, horror
+modpacks, ARGs, machinima, and found-footage videos**. The dedicated
+**Backrooms preset** emphasizes sickly fluorescent color, unstable exposure,
+deep tape noise, tracking loss, and damaged-camcorder movement while keeping
+the scene playable.
+
+[![Watch the Minecraft Backrooms VHS Shader trailer](https://img.youtube.com/vi/MWtnxr5Iu6Q/maxresdefault.jpg)](https://youtu.be/MWtnxr5Iu6Q)
+
+**[Watch the 53-second Backrooms VHS trailer on YouTube](https://youtu.be/MWtnxr5Iu6Q)**
+
 ## Compatibility
 
 | Minecraft | Recommended Iris line | Graphics backend | Status |
