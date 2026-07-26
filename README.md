@@ -9,7 +9,8 @@
 Lightweight analog-horror post-processing for Minecraft Java Edition.<br>
 Scanlines, tape grain, tracking tears, color bleed, temporal ghosting, lens
 distortion, sync failures, a proper signal-space YIQ pipeline, and dedicated
-Backrooms, Poolrooms, and Liminal Night lighting.
+Backrooms, Poolrooms, and Liminal Night lighting. Version 1.6 completes the
+roadmap with tape generations, period camcorders, and broken-signal simulation.
 
 <p>
   <a href="https://modrinth.com/shader/lost-signal-vhs">
@@ -44,7 +45,7 @@ placing a noise texture over the screen.
 - Performance, Balanced, and Cinematic render-quality modes
 - Selectable NTSC and PAL signal timing
 - Delayed automatic exposure, sync failures, and tracking color loss
-- Eight presets plus individual controls for every major effect
+- Eleven presets plus individual controls for every major effect
 - Overworld, Nether, and End support without dimension-specific shaders
 - English and Russian settings menus
 
@@ -83,7 +84,7 @@ placing a noise texture over the screen.
 
 ## Quick installation
 
-1. Download [`Lost_Signal_VHS_v1.3_Liminal_Signal.zip`](Lost_Signal_VHS_v1.3_Liminal_Signal.zip).
+1. Download [`Lost_Signal_VHS_v1.6_Complete_Roadmap.zip`](Lost_Signal_VHS_v1.6_Complete_Roadmap.zip).
 2. Put the ZIP into Minecraft's `shaderpacks` directory.
 3. Start Minecraft with Iris.
 4. Open **Options → Video Settings → Shader Packs**.
@@ -109,6 +110,9 @@ No resource pack, external texture, or compute-shader support is required.
 | **Subtle** | Restrained camcorder treatment |
 | **Found Footage** | Analog-horror balance without the VCR overlay |
 | **Damaged Tape** | Aggressive tears, static, separation, and ghosting |
+| **Rental Tape** | Four analog copies, oxide wear, fading, and weak RF ingress |
+| **Camcorder 1996** | VHS-C color response with REC, battery, timecode, zoom, and autofocus hunting |
+| **Broken Signal** | Severe mistracking, RF herringbone, chewed tape, and repeated frames |
 
 Every preset is only a starting point. Open **Shader Pack Settings** to tune
 the tape, camera, signal, format, and color groups independently.
@@ -125,6 +129,19 @@ the tape, camera, signal, format, and color groups independently.
   pretending to add world-space fog.
 - **Liminal Color Space** can be set to Off, Backrooms, Poolrooms, or Liminal
   Night independently of the preset.
+
+## Tape generation, camcorder, and broken signal
+
+- **Tape Format** switches between VHS SP, LP, SLP, VHS-C, and a worn rental
+  cassette, each with its own effective luma and chroma bandwidth.
+- **Copy Generation** compounds chroma loss, cross-color error, quantization,
+  fading, and noise through as many as five analog copies.
+- **Camera Era** selects 1980s tube, 1990s VHS, early-digital, or neutral color
+  response. The optional recorded HUD adds REC, battery, and MM:SS timecode.
+- **Digital Zoom** and **Autofocus Hunting** recreate consumer camcorder optics
+  before the signal enters the virtual tape deck.
+- **Broken Signal** controls manual tracking, RF herringbone, rolling
+  interference bands, buckled tape, and history-buffer frame repetition.
 
 ## Quality and signal modes
 
@@ -143,7 +160,7 @@ the tape, camera, signal, format, and color groups independently.
 - [`Lost_Signal_VHS/`](Lost_Signal_VHS/) — editable shader-pack source
 - [`Lost_Signal_VHS/shaders/lib/settings.glsl`](Lost_Signal_VHS/shaders/lib/settings.glsl) — direct effect controls
 - [`Lost_Signal_VHS/README.md`](Lost_Signal_VHS/README.md) — technical notes and testing checklist
-- [`Lost_Signal_VHS_v1.3_Liminal_Signal.zip`](Lost_Signal_VHS_v1.3_Liminal_Signal.zip) — ready-to-install universal release
+- [`Lost_Signal_VHS_v1.6_Complete_Roadmap.zip`](Lost_Signal_VHS_v1.6_Complete_Roadmap.zip) — ready-to-install universal release
 
 ## License
 

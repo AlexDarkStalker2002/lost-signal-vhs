@@ -6,7 +6,7 @@ profile.Liminal_Night=Лиминальная ночь
 profile.Subtle=Деликатный
 profile.Found_Footage=Найденная запись
 profile.Damaged_Tape=Повреждённая кассета
-profile.comment=Liminal Signal добавляет освещение «Закулисья», бассейновых комнат и лиминальной ночи. «Эталонная VHS» сохраняет вид реальной кассеты.
+profile.comment=Одиннадцать образов: от чистой VHS и лиминальных пространств до «Прокатной кассеты», «Камкордера 1996» и тяжёлого сбоя «Сломанный сигнал».
 
 screen.FORMAT=Формат VHS
 screen.TAPE=Повреждения ленты
@@ -140,3 +140,56 @@ option.HALATION_STRENGTH=Свечение ламп
 option.HALATION_STRENGTH.comment=Добавляет мягкое свечение вокруг пересвеченных ламп без современного кинематографического bloom.
 option.LUMA_RINGING=Ореолы яркости
 option.LUMA_RINGING.comment=Добавляет светлые и тёмные горизонтальные повторы контуров от дешёвой схемы повышения резкости.
+
+profile.Rental_Tape=Прокатная кассета
+profile.Camcorder_1996=Камкордер 1996
+profile.Broken_Signal=Сломанный сигнал
+
+screen.GENERATION=Поколение кассеты
+screen.CAMCORDER=Камкордер
+screen.BROKEN=Сломанный сигнал
+
+option.TAPE_FORMAT=Формат кассеты
+option.TAPE_FORMAT.comment=Выбирает скорость записи и характер кассеты, определяющие эффективную полосу яркости и цветности.
+value.TAPE_FORMAT.0=VHS SP
+value.TAPE_FORMAT.1=VHS LP
+value.TAPE_FORMAT.2=VHS SLP
+value.TAPE_FORMAT.3=VHS-C
+value.TAPE_FORMAT.4=Прокатная кассета
+option.GENERATION_LOSS=Поколение копии
+option.GENERATION_LOSS.comment=Усиливает потерю цвета, взаимные помехи, ступени яркости и шум при каждой аналоговой перезаписи.
+value.GENERATION_LOSS.0=Мастер
+value.GENERATION_LOSS.1=1-я копия
+value.GENERATION_LOSS.2=2-я копия
+value.GENERATION_LOSS.3=3-я копия
+value.GENERATION_LOSS.4=4-я копия
+value.GENERATION_LOSS.5=5-я копия
+option.TAPE_WEAR=Износ ленты
+option.TAPE_WEAR.comment=Добавляет выцветание магнитного слоя, обесцвеченные повреждённые строки и слабый шум перезаписи.
+
+option.CAMCORDER_ERA=Эпоха камеры
+option.CAMCORDER_ERA.comment=Выбирает цветовой отклик нейтрального источника, трубочной камеры 1980-х, VHS-камеры 1990-х или раннего цифрового камкордера.
+value.CAMCORDER_ERA.0=Нейтральная
+value.CAMCORDER_ERA.1=Трубка 1980-х
+value.CAMCORDER_ERA.2=VHS 1990-х
+value.CAMCORDER_ERA.3=Ранняя цифровая
+option.CAMCORDER_HUD=Индикация камкордера
+option.CAMCORDER_HUD.comment=Записывает в изображение мигающий REC, индикатор батареи и счётчик времени ММ:СС.
+option.DIGITAL_ZOOM=Цифровой зум
+option.DIGITAL_ZOOM.comment=Увеличивает центр кадра до наложения повреждений ленты.
+suffix.DIGITAL_ZOOM=x
+option.FOCUS_HUNT_STRENGTH=Поиск фокуса
+option.FOCUS_HUNT_STRENGTH.comment=Добавляет медленные промахи и восстановление потребительского автофокуса.
+
+option.TRACKING_CONTROL=Ручной трекинг
+option.TRACKING_CONTROL.comment=Перемещает бегущую полосу рассинхронизации и меняет её горизонтальный сдвиг, как ручка tracking на видеомагнитофоне.
+option.RF_INTERFERENCE_STRENGTH=Радиопомехи
+option.RF_INTERFERENCE_STRENGTH.comment=Добавляет диагональную «ёлочку» несущей и медленные яркие полосы радиопомех.
+option.TAPE_CHEW_STRENGTH=Зажёванная лента
+option.TAPE_CHEW_STRENGTH.comment=Добавляет редкие широкие складки ленты с искривлёнными строками и плотным статическим шумом.
+option.FRAME_REPEAT=Повтор кадра
+option.FRAME_REPEAT.comment=Позволяет заеданию механизма повторять предыдущий полностью обработанный кадр.
+option.FRAME_REPEAT_FREQUENCY=Частота повторов
+option.FRAME_REPEAT_FREQUENCY.comment=Вероятность повтора кадра в каждом интервале работы механизма.
+option.FRAME_REPEAT_STRENGTH=Сила повтора
+option.FRAME_REPEAT_STRENGTH.comment=Определяет, насколько предыдущий кадр замещает текущий во время заедания.

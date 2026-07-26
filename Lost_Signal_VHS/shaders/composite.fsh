@@ -379,6 +379,23 @@ void main() {
                           * mix(0.40, 1.00, SYNC_GLITCH_STRENGTH);
         color = mix(color, heldFrame, holdOpacity);
 #endif
+
+#ifdef FRAME_REPEAT
+        // A transport stall repeats the fully processed previous frame. The
+        // short attack/release prevents a hard game-like freeze while recursive
+        // history sustains the held picture for the duration of the event.
+        float repeatPhase = time * 1.25;
+        float repeatTick = floor(repeatPhase);
+        float repeatAge = fract(repeatPhase);
+        float repeatEvent = step(1.0 - FRAME_REPEAT_FREQUENCY,
+                                 hash21(vec2(repeatTick, 619.4)));
+        float repeatWindow = smoothstep(0.0, 0.025, repeatAge)
+                           * (1.0 - smoothstep(0.18, 0.48, repeatAge));
+        vec3 repeatedFrame = texture2D(colortex4,
+                                       clampUV(texcoord, pixel)).rgb;
+        color = mix(color, repeatedFrame,
+                    repeatEvent * repeatWindow * FRAME_REPEAT_STRENGTH);
+#endif
     }
 
 #ifdef CHROMA_KILLER

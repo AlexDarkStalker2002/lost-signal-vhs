@@ -138,6 +138,102 @@ float glyphG(vec2 p) {
     return g;
 }
 
+float glyphE(vec2 p) {
+    float g = boxMask(p, vec2(0.08, 0.05), vec2(0.25, 0.95));
+    g = max(g, boxMask(p, vec2(0.15, 0.80), vec2(0.88, 0.95)));
+    g = max(g, boxMask(p, vec2(0.15, 0.43), vec2(0.76, 0.58)));
+    g = max(g, boxMask(p, vec2(0.15, 0.05), vec2(0.88, 0.20)));
+    return g;
+}
+
+float digitGlyph(vec2 p, float digit) {
+    float top = boxMask(p, vec2(0.18, 0.82), vec2(0.82, 0.95));
+    float upperRight = boxMask(p, vec2(0.72, 0.50), vec2(0.87, 0.88));
+    float lowerRight = boxMask(p, vec2(0.72, 0.12), vec2(0.87, 0.50));
+    float bottom = boxMask(p, vec2(0.18, 0.05), vec2(0.82, 0.18));
+    float lowerLeft = boxMask(p, vec2(0.08, 0.12), vec2(0.23, 0.50));
+    float upperLeft = boxMask(p, vec2(0.08, 0.50), vec2(0.23, 0.88));
+    float middle = boxMask(p, vec2(0.18, 0.43), vec2(0.82, 0.57));
+
+    float a = 0.0;
+    float b = 0.0;
+    float c = 0.0;
+    float d = 0.0;
+    float e = 0.0;
+    float f = 0.0;
+    float g = 0.0;
+    if (digit < 0.5) {
+        a = 1.0; b = 1.0; c = 1.0; d = 1.0; e = 1.0; f = 1.0;
+    } else if (digit < 1.5) {
+        b = 1.0; c = 1.0;
+    } else if (digit < 2.5) {
+        a = 1.0; b = 1.0; d = 1.0; e = 1.0; g = 1.0;
+    } else if (digit < 3.5) {
+        a = 1.0; b = 1.0; c = 1.0; d = 1.0; g = 1.0;
+    } else if (digit < 4.5) {
+        b = 1.0; c = 1.0; f = 1.0; g = 1.0;
+    } else if (digit < 5.5) {
+        a = 1.0; c = 1.0; d = 1.0; f = 1.0; g = 1.0;
+    } else if (digit < 6.5) {
+        a = 1.0; c = 1.0; d = 1.0; e = 1.0; f = 1.0; g = 1.0;
+    } else if (digit < 7.5) {
+        a = 1.0; b = 1.0; c = 1.0;
+    } else if (digit < 8.5) {
+        a = 1.0; b = 1.0; c = 1.0; d = 1.0;
+        e = 1.0; f = 1.0; g = 1.0;
+    } else {
+        a = 1.0; b = 1.0; c = 1.0; d = 1.0; f = 1.0; g = 1.0;
+    }
+    return max(max(max(top * a, upperRight * b), max(lowerRight * c, bottom * d)),
+               max(max(lowerLeft * e, upperLeft * f), middle * g));
+}
+
+float camcorderOsd(vec2 uv, float time) {
+    float hud = 0.0;
+    vec2 letterSize = vec2(0.030, 0.056);
+
+    // REC and a blinking record lamp.
+    hud = max(hud, glyphR((uv - vec2(0.075, 0.875)) / letterSize));
+    hud = max(hud, glyphE((uv - vec2(0.107, 0.875)) / letterSize));
+    hud = max(hud, glyphC((uv - vec2(0.139, 0.875)) / letterSize));
+    float recBlink = step(0.38, fract(time * 1.65));
+    float recDot = 1.0 - smoothstep(0.008, 0.012,
+                                    length(uv - vec2(0.187, 0.902)));
+    hud = max(hud, recDot * recBlink);
+
+    // Two-cell battery with a small positive terminal.
+    float battery = boxMask(uv, vec2(0.815, 0.884), vec2(0.895, 0.894));
+    battery = max(battery, boxMask(uv, vec2(0.815, 0.930), vec2(0.895, 0.940)));
+    battery = max(battery, boxMask(uv, vec2(0.815, 0.884), vec2(0.825, 0.940)));
+    battery = max(battery, boxMask(uv, vec2(0.885, 0.884), vec2(0.895, 0.940)));
+    battery = max(battery, boxMask(uv, vec2(0.897, 0.901), vec2(0.905, 0.923)));
+    battery = max(battery, boxMask(uv, vec2(0.831, 0.896), vec2(0.850, 0.928)));
+    battery = max(battery, boxMask(uv, vec2(0.856, 0.896), vec2(0.875, 0.928)));
+    hud = max(hud, battery);
+
+    // Running MM:SS timecode.
+    float elapsed = mod(floor(time), 3600.0);
+    float minutes = floor(elapsed / 60.0);
+    float seconds = mod(elapsed, 60.0);
+    float digit0 = floor(minutes / 10.0);
+    float digit1 = mod(minutes, 10.0);
+    float digit2 = floor(seconds / 10.0);
+    float digit3 = mod(seconds, 10.0);
+    vec2 digitSize = vec2(0.024, 0.047);
+    hud = max(hud, digitGlyph((uv - vec2(0.770, 0.065)) / digitSize,
+                              digit0));
+    hud = max(hud, digitGlyph((uv - vec2(0.797, 0.065)) / digitSize,
+                              digit1));
+    hud = max(hud, digitGlyph((uv - vec2(0.837, 0.065)) / digitSize,
+                              digit2));
+    hud = max(hud, digitGlyph((uv - vec2(0.864, 0.065)) / digitSize,
+                              digit3));
+    float colon = boxMask(uv, vec2(0.826, 0.080), vec2(0.831, 0.088));
+    colon = max(colon, boxMask(uv, vec2(0.826, 0.099), vec2(0.831, 0.107)));
+    hud = max(hud, colon);
+    return clamp(hud, 0.0, 1.0);
+}
+
 float playbackOsd(vec2 uv, float time) {
     vec2 bigSize = vec2(0.043, 0.082);
     float osd = 0.0;
@@ -222,6 +318,11 @@ void main() {
     }
 #endif
 
+    // Consumer digital zoom enlarges the already cropped camera image. Keeping
+    // it before tape transport errors makes every later defect remain locked to
+    // the recorded signal rather than to the Minecraft camera.
+    sourceUv = 0.5 + (sourceUv - 0.5) / max(DIGITAL_ZOOM, 1.0);
+
     // Handheld drift and frame jitter are held rather than smoothly animated,
     // preventing the movement from looking like a modern camera animation.
     vec2 wobblePixels = vec2(
@@ -279,12 +380,36 @@ void main() {
                        + glitchBand * glitchDirection
                        * GLITCH_STRENGTH * tearTexture;
 
-    float trackingY = fract(time * 0.071 + 0.13 * sin(time * 0.19));
+    float trackingY = fract(time * 0.071 + 0.13 * sin(time * 0.19)
+                            + TRACKING_CONTROL * 0.22);
     float trackingDistance = abs(frameUv.y - trackingY);
     trackingDistance = min(trackingDistance, 1.0 - trackingDistance);
     float trackingBand = pow(max(0.0, 1.0 - trackingDistance * 42.0), 3.0);
-    glitchPixels += trackingBand * sin(time * 17.0) * GLITCH_STRENGTH * 0.22;
+    glitchPixels += trackingBand
+                  * (sin(time * 17.0) * GLITCH_STRENGTH * 0.22
+                     + TRACKING_CONTROL * 9.0);
     sourceUv.x += glitchPixels * displayScale * pixel.x;
+
+    // A chewed section of tape briefly buckles several neighboring scan lines.
+    // The broad correlated envelope avoids the rectangular digital-glitch look.
+    float chewPhase = time * 0.18;
+    float chewTick = floor(chewPhase);
+    float chewAge = fract(chewPhase);
+    float chewEvent = step(1.0 - TAPE_CHEW_STRENGTH * 0.46,
+                           hash21(vec2(chewTick, 307.1)));
+    float chewWindow = smoothstep(0.0, 0.018, chewAge)
+                     * (1.0 - smoothstep(0.055, 0.125, chewAge));
+    float chewCenter = mix(0.12, 0.88, hash21(vec2(chewTick, 191.7)));
+    float chewWidth = mix(0.018, 0.085, hash21(vec2(chewTick, 159.2)));
+    float chewDistance = abs(frameUv.y - chewCenter);
+    float chewBand = chewEvent * chewWindow
+                   * (1.0 - smoothstep(chewWidth, chewWidth * 2.4,
+                                       chewDistance));
+    float chewRipple = sin(frameUv.y * 870.0 + time * 41.0)
+                      + (smoothNoise21(vec2(frameUv.y * 94.0,
+                                            time * 7.0)) * 2.0 - 1.0);
+    sourceUv.x += chewBand * chewRipple * TAPE_CHEW_STRENGTH * 0.026;
+    sourceUv.y += chewBand * chewRipple * TAPE_CHEW_STRENGTH * 0.0035;
 
     // Cheap camcorder lens distortion. This happens before all signal damage so
     // noise remains screen-aligned, as it would when added during tape playback.
@@ -319,7 +444,10 @@ void main() {
     // Soften luminance mostly in the horizontal direction. Avoid quantizing the
     // UV itself: discontinuous derivatives caused terrain sampling problems on
     // Minecraft 1.21.11 / Iris 1.10.x on Apple Metal.
-    float softRadius = TAPE_SOFTNESS * displayScale;
+    float focusCycle = smoothNoise21(vec2(time * 0.14, 203.8));
+    float focusMiss = smoothstep(0.48, 0.88, focusCycle)
+                    * FOCUS_HUNT_STRENGTH;
+    float softRadius = (TAPE_SOFTNESS + focusMiss * 8.0) * displayScale;
     vec2 blurX = vec2(pixel.x * softRadius, 0.0);
 
     vec3 center = texture2D(colortex0, sourceUv).rgb;
@@ -494,6 +622,75 @@ void main() {
            * NOISE_STRENGTH * 0.18;
 #endif
 
+    // Tape format and copy generation. Each format has a different effective
+    // chroma bandwidth and luma resolution; every analog copy compounds those
+    // losses and adds a little cross-color contamination.
+    float formatChroma = 1.0;
+    float formatLevels = 512.0;
+    float formatNoise = 0.0;
+#if TAPE_FORMAT == 1
+    formatChroma = 0.91;
+    formatLevels = 384.0;
+    formatNoise = 0.002;
+#elif TAPE_FORMAT == 2
+    formatChroma = 0.78;
+    formatLevels = 256.0;
+    formatNoise = 0.005;
+#elif TAPE_FORMAT == 3
+    formatChroma = 0.90;
+    formatLevels = 420.0;
+    formatNoise = 0.003;
+#elif TAPE_FORMAT == 4
+    formatChroma = 0.66;
+    formatLevels = 180.0;
+    formatNoise = 0.010;
+#endif
+    float copyGeneration = float(GENERATION_LOSS);
+    vec3 generationYiq = rgbToYiq(color);
+    float oldGenerationI = generationYiq.y;
+    float oldGenerationQ = generationYiq.z;
+    float generationRetention = formatChroma * pow(0.89, copyGeneration);
+    generationYiq.y = (oldGenerationI + oldGenerationQ * 0.045
+                       * copyGeneration) * generationRetention;
+    generationYiq.z = (oldGenerationQ - oldGenerationI * 0.035
+                       * copyGeneration) * generationRetention;
+    float effectiveLevels = max(72.0, formatLevels
+                                / (1.0 + copyGeneration * 0.34));
+    generationYiq.x = floor(clamp(generationYiq.x, 0.0, 1.0)
+                            * effectiveLevels + 0.5) / effectiveLevels;
+    color = yiqToRgb(generationYiq);
+
+    float wearLine = smoothNoise21(vec2(signalLinePosition * 0.075 + 211.0,
+                                        time * 0.31));
+    float oxideWear = smoothstep(0.58, 0.92, wearLine) * TAPE_WEAR;
+    float generationNoise = hash21(noiseCell
+                                    + vec2(frame * 0.23, 481.6)) - 0.5;
+    color += vec3(generationNoise)
+           * (formatNoise + copyGeneration * 0.0026 + TAPE_WEAR * 0.006);
+    float generationLuma = dot(color, vec3(0.299, 0.587, 0.114));
+    color = mix(color, vec3(generationLuma),
+                clamp(copyGeneration * 0.028 + oxideWear * 0.18, 0.0, 0.42));
+    color = mix(color, vec3(0.48 + generationLuma * 0.38),
+                oxideWear * 0.12);
+
+    // Camera response is deliberately separate from the tape format: the same
+    // cassette can therefore look as if it came from a tube, VHS, or early-DV
+    // consumer camera.
+#if CAMCORDER_ERA == 1
+    color *= vec3(1.08, 1.00, 0.78);
+    color = mix(color, vec3(dot(color, vec3(0.299, 0.587, 0.114))),
+                0.08);
+    color += vec3(0.020, 0.010, -0.008);
+#elif CAMCORDER_ERA == 2
+    color *= vec3(0.98, 1.07, 0.82);
+    color = (color - 0.5) * 0.92 + 0.5;
+#elif CAMCORDER_ERA == 3
+    float digitalLuma = dot(color, vec3(0.299, 0.587, 0.114));
+    color *= vec3(0.94, 1.00, 1.08);
+    color += (color - vec3(digitalLuma)) * 0.10;
+    color = floor(clamp(color, 0.0, 1.0) * 235.0 + 0.5) / 235.0;
+#endif
+
     // Real capture grade: muted contrast, weak blue response, and green cast.
     color *= mix(vec3(1.0), vec3(0.94, 1.12, 0.72), TINT_STRENGTH * 0.92);
     color = (color - 0.5) * mix(1.0, 0.86, WASHOUT_STRENGTH) + 0.5;
@@ -620,6 +817,27 @@ void main() {
     float staticMix = staticEvent * staticWindow * (0.28 + staticLine * 0.48);
     color = mix(color, vec3(staticValue), staticMix);
 
+    // RF ingress forms diagonal herringbone carriers plus slowly rolling bright
+    // bands. It remains signal-like at every resolution by using display pixels
+    // for the carrier and normalized coordinates for the rolling envelope.
+    float rfCarrierA = sin(frameUv.x * viewWidth * 0.31
+                         + frameUv.y * viewHeight * 0.095
+                         + time * 46.0);
+    float rfCarrierB = sin(frameUv.x * viewWidth * 0.27
+                         - frameUv.y * viewHeight * 0.082
+                         - time * 39.0);
+    float rfHerringbone = (rfCarrierA * rfCarrierB) * 0.5;
+    float rfBandCenter = fract(time * 0.083
+                               + smoothNoise21(vec2(time * 0.07, 517.2))
+                               * 0.22);
+    float rfBandDistance = abs(frameUv.y - rfBandCenter);
+    rfBandDistance = min(rfBandDistance, 1.0 - rfBandDistance);
+    float rfBand = 1.0 - smoothstep(0.012, 0.085, rfBandDistance);
+    color += vec3(rfHerringbone * 0.055 + rfBand * 0.085)
+           * RF_INTERFERENCE_STRENGTH;
+    color = mix(color, vec3(staticValue),
+                chewBand * TAPE_CHEW_STRENGTH * 0.72);
+
     // Head-switching area mixes in bright/black line noise at the frame bottom.
     float headStatic = hash21(vec2(floor(frameUv.x * 260.0) + frame * 5.0,
                                    floor(frameUv.y * 520.0) + frame * 2.0));
@@ -655,6 +873,21 @@ void main() {
     }
     color *= 1.0 - osd * 0.26;
     color = mix(color, vec3(0.96, 0.98, 0.91), osd * 0.94);
+#endif
+
+#ifdef CAMCORDER_HUD
+    // Camera-generated markings are recorded with the image, so their color
+    // follows the selected camera era instead of the deck's PLAY overlay.
+    float cameraHud = camcorderOsd(frameUv, time) * frameMask;
+#if CAMCORDER_ERA == 1
+    vec3 cameraHudColor = vec3(1.00, 0.34, 0.18);
+#elif CAMCORDER_ERA == 3
+    vec3 cameraHudColor = vec3(0.72, 0.94, 1.00);
+#else
+    vec3 cameraHudColor = vec3(0.96, 0.98, 0.88);
+#endif
+    color *= 1.0 - cameraHud * 0.30;
+    color = mix(color, cameraHudColor, cameraHud * 0.92);
 #endif
 
     gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);

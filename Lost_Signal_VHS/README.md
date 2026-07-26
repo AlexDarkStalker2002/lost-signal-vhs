@@ -3,8 +3,9 @@
 An Iris shader pack for Minecraft Java Edition that turns the vanilla scene into
 cheap, unstable found footage: scanlines, tape grain, tracking tears, color
 bleeding, camcorder lens distortion, flicker, temporal ghosting, frame jitter,
-and a yellow-green security-camera grade. Version 1.3 adds dedicated Backrooms,
-Poolrooms, and Liminal Night lighting. Its optional signal-accurate YIQ path
+and a yellow-green security-camera grade. Version 1.6 includes the Liminal
+Signal lighting, tape-generation model, period camcorder simulation, and
+broken-signal transport failures. Its optional signal-accurate YIQ path
 processes brightness and analog color independently instead of applying a
 generic RGB blur.
 
@@ -73,7 +74,7 @@ For shader compile diagnostics, open the Iris shader selection screen and press
 
 ## Tuning
 
-The settings menu provides eight presets:
+The settings menu provides eleven presets:
 
 - **Reference VHS**: matches the supplied real-tape screenshots: saturated green
   chroma, edge ringing, crushed shadows, bright halation, and no text overlay.
@@ -88,6 +89,12 @@ The settings menu provides eight presets:
 - **Subtle**: a restrained consumer-camcorder look.
 - **Found Footage**: the analog-horror balance without the deck OSD.
 - **Damaged Tape**: stronger tears, static, color separation, and ghosting.
+- **Rental Tape**: a fourth-generation worn cassette with faded oxide,
+  restricted chroma bandwidth, and weak radio interference.
+- **Camcorder 1996**: VHS-C response with a recorded REC/battery/timecode HUD,
+  mild digital zoom, and slow autofocus hunting.
+- **Broken Signal**: severe mistracking, RF herringbone, buckled tape, and
+  genuine previous-frame repetition.
 
 The VCR OSD is disabled by default but remains available as an option. **Rounded
 Overscan** now controls only the curved black mask; disabling it keeps lens
@@ -128,6 +135,21 @@ has an on/off switch and/or its own intensity or frequency control:
 The Subtle preset disables all five switches. Other presets enable them at
 different strengths, and every switch can be changed independently afterward.
 
+The **Tape Generation** page separates cassette format from copy history.
+VHS SP, LP, SLP, VHS-C, and Worn Rental modes have distinct luma resolution,
+chroma retention, and noise floors. Up to five analog copy generations compound
+color loss, cross-color contamination, luma stepping, and fading.
+
+The **Camcorder** page selects neutral, 1980s tube, 1990s VHS, or early-digital
+camera response. Its optional recorded HUD draws a blinking REC lamp, battery,
+and running MM:SS timecode. Digital zoom and correlated autofocus hunting occur
+before tape damage, matching the order of a real consumer recording chain.
+
+The **Broken Signal** page adds a manual tracking bias, diagonal RF herringbone,
+rolling interference bands, rare broad tape-chew warping, and recursive
+previous-frame repetition. These controls are independent and default to off or
+zero outside their dedicated presets.
+
 Every parameter is also defined near the top of
 `shaders/lib/settings.glsl`. Edit that file if you prefer direct control. All
 amounts documented as pixels are resolution-independent screen-pixel offsets.
@@ -145,11 +167,34 @@ so scanlines, grain, RGB separation, and virtual pixels remain visible on macOS.
   low-bandwidth I/Q reconstruction, RF static, dropouts, head-switch tearing,
   liminal lighting, alternating scan fields, grain, and the optional VCR OSD.
 
-This is intentionally the original multi-pass look. Version 1.3 uses the stable
+This is intentionally the original multi-pass look. Version 1.6 uses the stable
 GLSL 1.20 and composite-buffer interfaces shared by supported Iris releases from
 Minecraft 1.20.1 through 26.2. It uses one persistent RGBA history buffer plus a
 second playback-generation pass. The actual game and output resolution are
 never reduced.
+
+## Version 1.6 — Broken Signal
+
+- Added manual VCR tracking control with positional and displacement bias.
+- Added resolution-stable RF herringbone and rolling bright interference bands.
+- Added rare correlated tape-chew events that buckle groups of scan lines and
+  concentrate static inside the damaged region.
+- Added real repeated-frame stalls using the persistent processed-frame buffer.
+- Added the severe **Broken Signal** preset.
+
+## Version 1.5 — Camcorder
+
+- Added neutral, 1980s tube, 1990s VHS, and early-digital camera responses.
+- Added a generated recorded HUD with blinking REC, battery, and MM:SS timecode.
+- Added centered consumer digital zoom and slow correlated autofocus hunting.
+- Added the **Camcorder 1996** preset.
+
+## Version 1.4 — Tape Generation
+
+- Added VHS SP, VHS LP, VHS SLP, VHS-C, and Worn Rental cassette models.
+- Added zero through five copy generations with compounding chroma loss,
+  cross-color contamination, luma stepping, fading, and noise.
+- Added adjustable oxide wear and the **Rental Tape** preset.
 
 ## Version 1.3 — Liminal Signal
 
