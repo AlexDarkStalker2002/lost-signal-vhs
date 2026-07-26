@@ -14,8 +14,11 @@ specific shader files.
 
 ## Requirements
 
-- Minecraft Java Edition 26.2 with Iris 1.11.2 and Sodium
-- Minecraft Java Edition 1.21.4 with Iris 1.8.8 remains supported
+- Minecraft Java Edition 26.2 or 26.1.2 with Iris 1.11.2 and Sodium
+- Minecraft Java Edition 1.21.11 with Iris 1.10.7 and Sodium
+- Minecraft Java Edition 1.21.4 with Iris 1.8.8 and Sodium
+- Minecraft Java Edition 1.21.1 with Iris 1.8.12 and Sodium
+- Minecraft Java Edition 1.20.1 with Iris 1.7.6 and Sodium
 - The OpenGL graphics backend
 
 No resource pack, noise texture, or compute-shader support is required.
@@ -30,7 +33,7 @@ compatible with Vulkan. Leave **Graphics API** on **Default** (OpenGL in the
    `shaderpacks` directory.
 2. On Minecraft 26.2, open **Video Settings > Graphics API** and choose
    **Default** or **Prefer OpenGL**. Restart the game if the setting changes.
-3. Start Minecraft with Iris 1.11.2.
+3. Start Minecraft with the compatible Iris release listed above.
 4. Open **Options > Video Settings > Shader Packs**.
 5. Select **Lost Signal VHS** and apply it.
 6. Open **Shader Pack Settings** to choose a preset or tune individual effects.
@@ -125,11 +128,28 @@ so scanlines, grain, RGB separation, and virtual pixels remain visible on macOS.
   low-bandwidth I/Q reconstruction, RF static, dropouts, head-switch tearing,
   alternating scan fields, grain, and the optional VCR OSD.
 
-This is intentionally the original heavy multi-pass look. Version 1.1 targets
-Minecraft 26.2 with Iris 1.11.2 while retaining compatibility with the original
-Minecraft 1.21.4 / Iris 1.8.8 setup. It uses one persistent RGBA history buffer
-plus a second playback-generation pass. The actual game and output resolution
-are never reduced.
+This is intentionally the original multi-pass look. Version 1.2 uses the stable
+GLSL 1.20 and composite-buffer interfaces shared by supported Iris releases from
+Minecraft 1.20.1 through 26.2. It uses one persistent RGBA history buffer plus a
+second playback-generation pass. The actual game and output resolution are
+never reduced.
+
+## Version 1.2
+
+- Added Performance, Balanced, and Cinematic render-quality modes.
+- Performance mode removes optional texture taps and uses inexpensive
+  two-sample exposure metering.
+- Separated temporal ghosting from the optional spatial tape echo.
+- Added history stabilization for cleaner fast camera turns.
+- Added selectable NTSC and PAL line, field-rate, and chroma-phase behavior.
+- Added true interlaced field weaving through the persistent history buffer.
+- Replaced block-shaped glitches with correlated mechanical time-base error and
+  soft multi-track tracking tears.
+- Locked tape noise and jitter to the selected analog field rate instead of the
+  game's rendering frame rate.
+- Added a complete Russian settings translation.
+- Added universal compatibility targets for Minecraft 26.2, 26.1.2, 1.21.11,
+  1.21.4, 1.21.1, and 1.20.1.
 
 ## Version 1.1
 

@@ -34,6 +34,22 @@ float hash21(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
+// Bilinearly interpolated value noise. Unlike independent line hashes, this
+// stays correlated across neighboring raster lines and evolves continuously in
+// time, matching mechanical time-base error instead of digital block glitches.
+float smoothNoise21(vec2 p) {
+    vec2 cell = floor(p);
+    vec2 local = fract(p);
+    vec2 curve = local * local * (3.0 - 2.0 * local);
+    float lower = mix(hash21(cell),
+                      hash21(cell + vec2(1.0, 0.0)),
+                      curve.x);
+    float upper = mix(hash21(cell + vec2(0.0, 1.0)),
+                      hash21(cell + vec2(1.0, 1.0)),
+                      curve.x);
+    return mix(lower, upper, curve.y);
+}
+
 vec2 clampUV(vec2 uv, vec2 pixel) {
     return clamp(uv, pixel * 1.5, vec2(1.0) - pixel * 1.5);
 }
@@ -68,7 +84,10 @@ void main() {
     vec2 resolution = vec2(viewWidth, viewHeight);
     vec2 pixel = 1.0 / resolution;
     float time = frameTimeCounter;
-    float frame = float(frameCounter);
+    // Signal noise and jitter advance at the tape field rate, not at an
+    // arbitrary monitor/game frame rate. This keeps the look stable at 60,
+    // 144, or uncapped FPS.
+    float frame = floor(time * VHS_FIELD_RATE);
 
     // -------------------------------------------------------------------------
     // Handheld motion, random frame jitter, and horizontal tracking glitches.
@@ -89,16 +108,48 @@ void main() {
         hash11(jitterFrame + 53.0) - 0.5
     ) * (2.0 * FRAME_JITTER);
 
-    // A global event gate makes tears occasional; within an event, only random
-    // horizontal blocks are displaced. Stronger tears also exaggerate RGB split.
-    float glitchTick = floor(time * 9.0);
+    // Mechanical time-base error drifts continuously across neighboring raster
+    // lines. Two differently scaled noise bands represent slow capstan error and
+    // faster guide/head timing instability.
+    float signalLine = texcoord.y * VHS_SIGNAL_LINES;
+    float slowTimebase = smoothNoise21(vec2(signalLine * 0.018,
+                                            time * 0.82)) * 2.0 - 1.0;
+    float fastTimebase = smoothNoise21(vec2(signalLine * 0.095 + 17.0,
+                                            time * 3.70)) * 2.0 - 1.0;
+    float lineTimebase = slowTimebase * 0.76 + fastTimebase * 0.24;
+
+    // Rare tracking loss forms one or two soft horizontal tears. Their envelope,
+    // displacement, and edges are continuous, avoiding rectangular digital
+    // blocks while still allowing violent damaged-tape events.
+    float glitchPhase = time * 1.70;
+    float glitchTick = floor(glitchPhase);
+    float glitchAge = fract(glitchPhase);
     float glitchEvent = step(1.0 - GLITCH_FREQUENCY,
                              hash21(vec2(glitchTick, 19.37)));
-    float lineBlock = floor(texcoord.y * 52.0);
-    float lineRandom = hash21(vec2(lineBlock, glitchTick));
-    float glitchBand = glitchEvent * step(0.58, lineRandom);
-    float glitchDirection = hash21(vec2(lineBlock + 9.1, glitchTick)) * 2.0 - 1.0;
-    float glitchPixels = glitchBand * glitchDirection * GLITCH_STRENGTH;
+    float glitchEnvelope = smoothstep(0.0, 0.035, glitchAge)
+                         * (1.0 - smoothstep(0.10, 0.28, glitchAge));
+    float tearCenter = hash21(vec2(glitchTick, 43.71));
+    float tearWidth = mix(0.006, 0.030,
+                          hash21(vec2(glitchTick, 71.13)));
+    float tearDistance = abs(texcoord.y - tearCenter);
+    float primaryTear = 1.0 - smoothstep(tearWidth,
+                                         tearWidth * 2.4,
+                                         tearDistance);
+    float secondCenter = fract(tearCenter + 0.028
+                               + hash21(vec2(glitchTick, 11.70)) * 0.075);
+    float secondDistance = abs(texcoord.y - secondCenter);
+    float secondaryTear = (1.0 - smoothstep(tearWidth * 0.45,
+                                            tearWidth * 1.45,
+                                            secondDistance)) * 0.58;
+    float tearShape = max(primaryTear, secondaryTear);
+    float tearTexture = 0.62 + 0.38 * smoothNoise21(
+        vec2(signalLine * 0.055, time * 5.1 + glitchTick));
+    float glitchBand = glitchEvent * glitchEnvelope * tearShape;
+    float glitchDirection = hash21(vec2(glitchTick, 9.10)) * 2.0 - 1.0;
+    glitchDirection += lineTimebase * 0.24;
+    float glitchPixels = lineTimebase * TIMEBASE_ERROR
+                       + glitchBand * glitchDirection
+                       * GLITCH_STRENGTH * tearTexture;
 
     // A narrow tracking line rolls slowly through the picture even when the tape
     // is otherwise calm. It bends and brightens the image locally.
@@ -171,10 +222,17 @@ void main() {
                                     clampUV(uv - chromaOffset, pixel)).rgb;
 
     vec2 smearOffset = vec2(MOTION_SMEAR * pixel.x, 0.0);
+#if QUALITY_LEVEL == 0
+    // Performance mode reuses existing taps instead of reading two additional
+    // luma-smear samples. The second tape generation still supplies softening.
+    vec3 smearBack = negativeSample;
+    vec3 smearFront = positiveSample;
+#else
     vec3 smearBack = texture2D(colortex0,
                                clampUV(uv - smearOffset * 2.0, pixel)).rgb;
     vec3 smearFront = texture2D(colortex0,
                                 clampUV(uv + smearOffset, pixel)).rgb;
+#endif
 
     vec3 color;
 #ifdef YIQ_SIGNAL
@@ -203,11 +261,16 @@ void main() {
 
     // Per-line phase error gets much stronger when tracking lock is weak. This
     // rotates hue in signal space instead of applying an arbitrary RGB overlay.
-    float firstChromaLine = floor(texcoord.y * 240.0);
+    float firstChromaLine = floor(texcoord.y * VHS_CHROMA_LINES);
     float firstPhaseNoise = hash21(vec2(firstChromaLine, floor(time * 8.0))) - 0.5;
     firstPhaseNoise += sin(texcoord.y * 43.0 + time * 1.17) * 0.22;
     float firstPhaseAngle = firstPhaseNoise * CHROMA_PHASE_ERROR * 0.65;
     firstPhaseAngle += glitchBand * glitchDirection * CHROMA_PHASE_ERROR * 0.75;
+#if SIGNAL_STANDARD == 1
+    // PAL alternates the color-subcarrier phase on neighboring lines, making
+    // slow hue drift less directional than the NTSC decoder path.
+    firstPhaseAngle *= mod(firstChromaLine, 2.0) * 2.0 - 1.0;
+#endif
     vec2 tapeChroma = rotateChroma(vec2(tapeI, tapeQ), firstPhaseAngle);
     color = yiqToRgb(vec3(tapeY, tapeChroma));
 #else
@@ -223,6 +286,14 @@ void main() {
 #ifdef AUTO_EXPOSURE
     if (frameCounter > 2) {
         vec3 meterWeights = vec3(0.299, 0.587, 0.114);
+#if QUALITY_LEVEL == 0
+        // Two taps instead of ten make automatic exposure inexpensive enough
+        // for integrated GPUs while preserving its delayed response.
+        float currentMeter = dot(texture2D(colortex0, vec2(0.50)).rgb,
+                                 meterWeights);
+        float historyMeter = dot(texture2D(colortex4, vec2(0.50)).rgb,
+                                 meterWeights);
+#else
         float currentMeter = dot(texture2D(colortex0, vec2(0.50, 0.50)).rgb,
                                  meterWeights) * 0.36;
         currentMeter += dot(texture2D(colortex0, vec2(0.24, 0.28)).rgb,
@@ -244,6 +315,7 @@ void main() {
                             meterWeights) * 0.16;
         historyMeter += dot(texture2D(colortex4, vec2(0.76, 0.72)).rgb,
                             meterWeights) * 0.16;
+#endif
 
         float adaptedMeter = mix(currentMeter, historyMeter, 0.82);
         float exposureTarget = clamp(0.38 / max(adaptedMeter, 0.06),
@@ -262,6 +334,15 @@ void main() {
         vec2 historyOffset = vec2(-0.65 * MOTION_SMEAR * pixel.x, 0.0);
         vec3 history = texture2D(colortex4,
                                  clampUV(texcoord + historyOffset, pixel)).rgb;
+
+        // Reject history colors that are implausibly far from the current
+        // processed frame. This limits full-screen double exposure during fast
+        // camera turns without removing the smaller differences that form tape
+        // trails on moving objects.
+        float historyRange = mix(1.0, 0.12, HISTORY_STABILIZATION);
+        history = clamp(history,
+                        color - vec3(historyRange),
+                        color + vec3(historyRange));
         float difference = length(color - history);
         float adaptiveGhost = GHOST_STRENGTH
                             * mix(0.68, 1.22, smoothstep(0.04, 0.55, difference));
@@ -333,7 +414,7 @@ void main() {
     // -------------------------------------------------------------------------
     vec2 noiseCell = floor(texcoord * resolution / max(1.0, PIXEL_SCALE));
     float grain = hash21(noiseCell + vec2(frame * 1.73, frame * 0.37)) - 0.5;
-    float lineNoise = hash21(vec2(floor(texcoord.y * viewHeight * 0.5),
+    float lineNoise = hash21(vec2(floor(texcoord.y * VHS_SIGNAL_LINES),
                                   floor(time * 29.0))) - 0.5;
     color += vec3(grain * NOISE_STRENGTH);
     color += vec3(lineNoise * NOISE_STRENGTH * 0.34);
@@ -394,5 +475,26 @@ void main() {
 
     // A tiny lifted floor avoids pristine digital black except beyond the lens.
     color += vec3(0.006, 0.008, 0.004) * lensBorder;
+
+#ifdef INTERLACED_FIELDS
+    // True field weave: only one parity of recorded raster lines is refreshed
+    // during each NTSC/PAL field interval. The opposite lines come from the
+    // persistent previous field in colortex4, producing real motion combing
+    // rather than a stationary scanline overlay.
+    if (frameCounter > 2) {
+        float fieldParity = mod(floor(time * VHS_FIELD_RATE), 2.0);
+        float lineParity = mod(floor(texcoord.y * VHS_SIGNAL_LINES), 2.0);
+        float currentFieldLine = 1.0 - step(0.5,
+                                            abs(lineParity - fieldParity));
+        vec2 previousFieldUv = clampUV(
+            texcoord + vec2(lineTimebase * pixel.x * 0.18, 0.0),
+            pixel);
+        vec3 previousField = texture2D(colortex4, previousFieldUv).rgb;
+        float previousFieldMix = (1.0 - currentFieldLine)
+                               * INTERLACE_STRENGTH;
+        color = mix(color, previousField, previousFieldMix);
+    }
+#endif
+
     gl_FragData[0] = vec4(clamp(color, 0.0, 1.0), 1.0);
 }

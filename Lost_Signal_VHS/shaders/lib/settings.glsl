@@ -7,11 +7,16 @@
 // The values in square brackets are the allowed positions on each UI slider.
 // -----------------------------------------------------------------------------
 
+// Compatibility and performance
+#define QUALITY_LEVEL 1 // [0 1 2] 0 = Performance, 1 = Balanced, 2 = Cinematic.
+#define SIGNAL_STANDARD 0 // [0 1] 0 = NTSC 480-line/59.94-field signal, 1 = PAL 576-line/50-field signal.
+
 // Tape damage
 #define NOISE_STRENGTH 0.10 // [0.00 0.03 0.06 0.10 0.14 0.20 0.28] Soft monochrome and colored tape grain.
 #define SCANLINE_STRENGTH 0.22 // [0.00 0.12 0.22 0.30 0.38 0.48 0.60] Interlaced horizontal line modulation.
 #define GLITCH_FREQUENCY 0.08 // [0.00 0.04 0.08 0.12 0.16 0.24 0.35 0.50] Chance of a horizontal tracking-tear event.
 #define GLITCH_STRENGTH 7.0 // [0.0 2.0 4.0 7.0 10.0 16.0 24.0 36.0] Maximum horizontal tracking displacement, in pixels.
+#define TIMEBASE_ERROR 1.2 // [0.0 0.4 0.8 1.2 1.8 2.6 4.0 6.0] Continuous analog horizontal timing error, in pixels.
 #define STATIC_FREQUENCY 0.04 // [0.00 0.04 0.08 0.14 0.22 0.35 0.50] Chance of a short full-screen static burst.
 
 // Signal instability. Every new behavior has its own toggle and intensity so
@@ -36,6 +41,9 @@
 #define WOBBLE_STRENGTH 1.0 // [0.0 0.5 1.0 1.5 2.5 4.0 6.0] Slow imperfect image drift, in pixels.
 #define MOTION_SMEAR 4.0 // [0.0 0.5 1.0 1.5 2.5 4.0 6.0] Horizontal luma smear radius, in pixels.
 #define GHOST_STRENGTH 0.18 // [0.00 0.04 0.08 0.13 0.18 0.25 0.35] Amount of the previous processed frame retained.
+#define HISTORY_STABILIZATION 0.55 // [0.00 0.25 0.40 0.55 0.70 0.85 1.00] Rejects implausible history colors during fast camera motion.
+#define SPATIAL_ECHO // Adds a separate single-frame horizontal tape echo.
+#define SPATIAL_ECHO_STRENGTH 0.08 // [0.00 0.03 0.05 0.08 0.12 0.18 0.25] Strength of the non-temporal horizontal echo.
 #define PIXEL_SCALE 4.0 // [1.0 1.5 2.0 2.5 3.0 4.0 6.0] Virtual tape sampling cell size.
 
 // Real tape / deck capture characteristics
@@ -50,11 +58,25 @@
 // Enabled by default for the supplied real-VHS reference look.
 #define VHS_4_3 // Crop the camera image into a centered 4:3 playback frame.
 #define ROUNDED_OVERSCAN // Add a soft rounded black playback border.
+#define INTERLACED_FIELDS // Store alternate raster fields in the history buffer.
+#define INTERLACE_STRENGTH 0.92 // [0.00 0.25 0.50 0.70 0.85 0.92 1.00] Previous-field contribution on lines not refreshed by the current field.
 //#define VHS_OSD // Optional PLAY, transport, SLP, and tracking display. Off by default.
 
 // Color and framing
 #define WASHOUT_STRENGTH 0.12 // [0.00 0.12 0.22 0.34 0.48 0.62 0.78] Faded highlights and reduced contrast.
 #define TINT_STRENGTH 0.20 // [0.00 0.10 0.20 0.30 0.42 0.55 0.70] Green cast from the tape color decoder.
 #define VIGNETTE_STRENGTH 0.52 // [0.00 0.18 0.32 0.42 0.52 0.65 0.80] Darkness of the playback-frame corners.
+
+// Compile-time constants shared by both tape generations. Keeping the standard
+// selection in one place prevents version-specific shader forks.
+#if SIGNAL_STANDARD == 1
+    #define VHS_SIGNAL_LINES 576.0
+    #define VHS_CHROMA_LINES 288.0
+    #define VHS_FIELD_RATE 50.0
+#else
+    #define VHS_SIGNAL_LINES 480.0
+    #define VHS_CHROMA_LINES 240.0
+    #define VHS_FIELD_RATE 59.94
+#endif
 
 #endif
