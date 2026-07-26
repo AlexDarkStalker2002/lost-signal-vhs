@@ -142,6 +142,11 @@ never reduced.
 - Separated temporal ghosting from the optional spatial tape echo.
 - Added history stabilization for cleaner fast camera turns.
 - Added selectable NTSC and PAL line, field-rate, and chroma-phase behavior.
+- Added true interlaced field weaving through the persistent history buffer.
+- Replaced block-shaped glitches with correlated mechanical time-base error and
+  soft multi-track tracking tears.
+- Locked tape noise and jitter to the selected analog field rate instead of the
+  game's rendering frame rate.
 - Added a complete Russian settings translation.
 - Added universal compatibility targets for Minecraft 26.2, 26.1.2, 1.21.11,
   1.21.4, 1.21.1, and 1.20.1.

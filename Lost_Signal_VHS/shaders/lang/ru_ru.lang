@@ -30,6 +30,8 @@ option.GLITCH_FREQUENCY=Частота срывов трекинга
 option.GLITCH_FREQUENCY.comment=Определяет, как часто горизонтальные участки кадра срываются в сторону.
 option.GLITCH_STRENGTH=Дистанция срыва трекинга
 option.GLITCH_STRENGTH.comment=Максимальное горизонтальное смещение во время срыва.
+option.TIMEBASE_ERROR=Ошибка временной базы
+option.TIMEBASE_ERROR.comment=Плавный взаимосвязанный горизонтальный дрейф синхронизации вдоль строк записанного растра.
 option.STATIC_FREQUENCY=Частота вспышек помех
 option.STATIC_FREQUENCY.comment=Определяет, как часто короткая вспышка помех перекрывает изображение.
 
@@ -87,6 +89,7 @@ option.VIGNETTE_STRENGTH=Тёмные углы
 option.VIGNETTE_STRENGTH.comment=Затемняет углы как дешёвый старый объектив.
 
 suffix.GLITCH_STRENGTH= пикс.
+suffix.TIMEBASE_ERROR= пикс.
 suffix.CHROMA_AMOUNT= пикс.
 suffix.FRAME_JITTER= пикс.
 suffix.WOBBLE_STRENGTH= пикс.
@@ -99,6 +102,10 @@ option.VHS_4_3=Кадр 4:3
 option.VHS_4_3.comment=Обрезает центральную часть изображения до настоящего кассетного кадра 4:3 с боковыми полями.
 option.ROUNDED_OVERSCAN=Скруглённая развёртка
 option.ROUNDED_OVERSCAN.comment=Добавляет мягкие закруглённые края и скрывает нестабильные области по краям.
+option.INTERLACED_FIELDS=Чересстрочное сплетение полей
+option.INTERLACED_FIELDS.comment=Обновляет чередующиеся строки с частотой полей NTSC или PAL, сохраняя второе поле из истории.
+option.INTERLACE_STRENGTH=Сохранение прошлого поля
+option.INTERLACE_STRENGTH.comment=Определяет, насколько сильно необновляемые строки сохраняют предыдущее поле. Значение 1,0 даёт настоящее сплетение полей.
 option.VHS_OSD=Экранное меню видеомагнитофона
 option.VHS_OSD.comment=Показывает PLAY, режим SLP и периодическую шкалу трекинга.
 option.TAPE_SOFTNESS=Мягкость ленты

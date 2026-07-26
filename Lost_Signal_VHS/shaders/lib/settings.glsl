@@ -16,6 +16,7 @@
 #define SCANLINE_STRENGTH 0.22 // [0.00 0.12 0.22 0.30 0.38 0.48 0.60] Interlaced horizontal line modulation.
 #define GLITCH_FREQUENCY 0.08 // [0.00 0.04 0.08 0.12 0.16 0.24 0.35 0.50] Chance of a horizontal tracking-tear event.
 #define GLITCH_STRENGTH 7.0 // [0.0 2.0 4.0 7.0 10.0 16.0 24.0 36.0] Maximum horizontal tracking displacement, in pixels.
+#define TIMEBASE_ERROR 1.2 // [0.0 0.4 0.8 1.2 1.8 2.6 4.0 6.0] Continuous analog horizontal timing error, in pixels.
 #define STATIC_FREQUENCY 0.04 // [0.00 0.04 0.08 0.14 0.22 0.35 0.50] Chance of a short full-screen static burst.
 
 // Signal instability. Every new behavior has its own toggle and intensity so
@@ -57,6 +58,8 @@
 // Enabled by default for the supplied real-VHS reference look.
 #define VHS_4_3 // Crop the camera image into a centered 4:3 playback frame.
 #define ROUNDED_OVERSCAN // Add a soft rounded black playback border.
+#define INTERLACED_FIELDS // Store alternate raster fields in the history buffer.
+#define INTERLACE_STRENGTH 0.92 // [0.00 0.25 0.50 0.70 0.85 0.92 1.00] Previous-field contribution on lines not refreshed by the current field.
 //#define VHS_OSD // Optional PLAY, transport, SLP, and tracking display. Off by default.
 
 // Color and framing

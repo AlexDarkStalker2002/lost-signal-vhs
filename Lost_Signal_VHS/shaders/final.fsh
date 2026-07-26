@@ -20,6 +20,19 @@ float hash21(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
+float smoothNoise21(vec2 p) {
+    vec2 cell = floor(p);
+    vec2 local = fract(p);
+    vec2 curve = local * local * (3.0 - 2.0 * local);
+    float lower = mix(hash21(cell),
+                      hash21(cell + vec2(1.0, 0.0)),
+                      curve.x);
+    float upper = mix(hash21(cell + vec2(0.0, 1.0)),
+                      hash21(cell + vec2(1.0, 1.0)),
+                      curve.x);
+    return mix(lower, upper, curve.y);
+}
+
 vec2 safeUV(vec2 uv, vec2 pixel) {
     return clamp(uv, pixel * 2.0, vec2(1.0) - pixel * 2.0);
 }
@@ -179,7 +192,9 @@ void main() {
     vec2 pixel = 1.0 / resolution;
     float displayScale = max(1.0, viewHeight / 720.0);
     float time = frameTimeCounter;
-    float frame = float(frameCounter);
+    // Drive tape noise, jitter, and RF events from the analog field clock so
+    // their speed is independent of the game's rendering frame rate.
+    float frame = floor(time * VHS_FIELD_RATE);
     float aspect = viewWidth / viewHeight;
 
     // 4:3 deck playback framing. Center-crop rather than squeeze the world.
@@ -220,20 +235,49 @@ void main() {
     ) * (2.0 * FRAME_JITTER * displayScale);
     sourceUv += (wobblePixels + jitterPixels) * pixel;
 
-    // Horizontal time-base error follows raster lines. Rare gated events create
-    // stronger tracking tears without turning into rectangular digital glitches.
-    float glitchTick = floor(time * 9.0);
+    // The playback deck adds its own smoothly correlated time-base error on top
+    // of the camera/tape generation. Neighboring lines bend together because a
+    // real capstan and guide cannot jump in independent rectangular blocks.
+    float signalLinePosition = frameUv.y * VHS_SIGNAL_LINES;
+    float deckSlowTiming = smoothNoise21(vec2(signalLinePosition * 0.016 + 31.0,
+                                              time * 0.67)) * 2.0 - 1.0;
+    float deckFastTiming = smoothNoise21(vec2(signalLinePosition * 0.110 + 73.0,
+                                              time * 4.20)) * 2.0 - 1.0;
+    float lineTiming = deckSlowTiming * 0.72 + deckFastTiming * 0.28;
+
+    // A failed tracking lock creates narrow, feathered tears with a mechanical
+    // attack and release. A second weaker band resembles adjacent mistracked
+    // helical-scan tracks rather than a collection of digital rectangles.
+    float glitchPhase = time * 1.45;
+    float glitchTick = floor(glitchPhase);
+    float glitchAge = fract(glitchPhase);
     float glitchEvent = step(1.0 - GLITCH_FREQUENCY,
                              hash21(vec2(glitchTick, 19.37)));
-    float lineBlock = floor(frameUv.y * 52.0);
-    float glitchBand = glitchEvent
-                     * step(0.58, hash21(vec2(lineBlock, glitchTick)));
-    float glitchDirection = hash21(vec2(lineBlock + 9.1, glitchTick)) * 2.0 - 1.0;
-    float glitchPixels = glitchBand * glitchDirection * GLITCH_STRENGTH;
-    float rasterGroup = floor(frameUv.y * 480.0 / 3.0);
-    float lineTiming = hash21(vec2(rasterGroup, floor(time * 12.0))) - 0.5;
-    lineTiming += sin(frameUv.y * 41.0 + time * 1.7) * 0.18;
-    glitchPixels += lineTiming * (0.45 + glitchEvent * GLITCH_STRENGTH * 0.12);
+    float glitchEnvelope = smoothstep(0.0, 0.045, glitchAge)
+                         * (1.0 - smoothstep(0.12, 0.32, glitchAge));
+    float tearCenter = hash21(vec2(glitchTick, 61.20));
+    float tearWidth = mix(0.005, 0.026,
+                          hash21(vec2(glitchTick, 27.90)));
+    float primaryDistance = abs(frameUv.y - tearCenter);
+    float primaryTear = 1.0 - smoothstep(tearWidth,
+                                         tearWidth * 2.5,
+                                         primaryDistance);
+    float companionCenter = fract(tearCenter - 0.020
+                                  - hash21(vec2(glitchTick, 84.40)) * 0.060);
+    float companionDistance = abs(frameUv.y - companionCenter);
+    float companionTear = (1.0 - smoothstep(tearWidth * 0.42,
+                                            tearWidth * 1.35,
+                                            companionDistance)) * 0.52;
+    float glitchBand = glitchEvent * glitchEnvelope
+                     * max(primaryTear, companionTear);
+    float glitchDirection = hash21(vec2(glitchTick, 9.10)) * 2.0 - 1.0;
+    glitchDirection += lineTiming * 0.20;
+    float tearTexture = 0.58 + 0.42 * smoothNoise21(
+        vec2(signalLinePosition * 0.060 + 11.0,
+             time * 5.6 + glitchTick));
+    float glitchPixels = lineTiming * TIMEBASE_ERROR
+                       + glitchBand * glitchDirection
+                       * GLITCH_STRENGTH * tearTexture;
 
     float trackingY = fract(time * 0.071 + 0.13 * sin(time * 0.19));
     float trackingDistance = abs(frameUv.y - trackingY);

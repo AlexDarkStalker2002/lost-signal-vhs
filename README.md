@@ -38,6 +38,8 @@ placing a noise texture over the screen.
 - Chroma bleed, RGB separation, phase wobble, and YIQ color processing
 - Persistent temporal ghosting using the previous processed frame
 - History stabilization that keeps trails without full-screen double exposure
+- True NTSC/PAL field weaving through the persistent history buffer
+- Smooth mechanically correlated time-base error and feathered tracking tears
 - Performance, Balanced, and Cinematic render-quality modes
 - Selectable NTSC and PAL signal timing
 - Delayed automatic exposure, sync failures, and tracking color loss
@@ -117,6 +119,8 @@ the tape, camera, signal, format, and color groups independently.
 - **Cinematic** keeps the complete multi-radius filter path for high-end GPUs.
 - **NTSC** uses 480-line, 59.94-field timing and stronger directional hue drift.
 - **PAL** uses 576-line, 50-field timing with alternating chroma phase.
+- **Interlaced Field Weave** refreshes one raster-line parity per field and
+  retains the other parity from history, creating real motion combing.
 
 ## Repository layout
 

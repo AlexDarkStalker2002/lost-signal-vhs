@@ -30,6 +30,8 @@ option.GLITCH_FREQUENCY=Tracking Glitch Frequency
 option.GLITCH_FREQUENCY.comment=How often random horizontal blocks tear sideways.
 option.GLITCH_STRENGTH=Tracking Glitch Distance
 option.GLITCH_STRENGTH.comment=Maximum horizontal displacement during a tracking tear.
+option.TIMEBASE_ERROR=Time-Base Error
+option.TIMEBASE_ERROR.comment=Continuous smoothly correlated horizontal timing drift across recorded raster lines.
 option.STATIC_FREQUENCY=Static Burst Frequency
 option.STATIC_FREQUENCY.comment=How often a short burst of interference overwhelms the image.
 
@@ -87,6 +89,7 @@ option.VIGNETTE_STRENGTH=Dark Corners
 option.VIGNETTE_STRENGTH.comment=Darkens corners like an inexpensive old lens.
 
 suffix.GLITCH_STRENGTH= px
+suffix.TIMEBASE_ERROR= px
 suffix.CHROMA_AMOUNT= px
 suffix.FRAME_JITTER= px
 suffix.WOBBLE_STRENGTH= px
@@ -98,6 +101,10 @@ option.VHS_4_3=4:3 Playback Frame
 option.VHS_4_3.comment=Crops the central camera image into an authentic 4:3 tape frame with side borders.
 option.ROUNDED_OVERSCAN=Rounded Overscan
 option.ROUNDED_OVERSCAN.comment=Adds soft rounded playback edges and hides unstable outer picture areas.
+option.INTERLACED_FIELDS=Interlaced Field Weave
+option.INTERLACED_FIELDS.comment=Updates alternate raster lines at the selected NTSC or PAL field rate and retains the other field from history.
+option.INTERLACE_STRENGTH=Field Persistence
+option.INTERLACE_STRENGTH.comment=Controls how strongly non-current lines retain the preceding field. 1.0 is a true field weave.
 option.VHS_OSD=VCR On-Screen Display
 option.VHS_OSD.comment=Draws PLAY, transport, SLP, and an occasional tracking calibration overlay.
 option.TAPE_SOFTNESS=Tape Softness
