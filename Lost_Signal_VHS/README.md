@@ -3,16 +3,18 @@
 An Iris shader pack for Minecraft Java Edition that turns the vanilla scene into
 cheap, unstable found footage: scanlines, tape grain, tracking tears, color
 bleeding, camcorder lens distortion, flicker, temporal ghosting, frame jitter,
-and a yellow-green security-camera grade. Version 1.6 includes the Liminal
+and a yellow-green security-camera grade. Version 1.6.1 includes the Liminal
 Signal lighting, tape-generation model, period camcorder simulation, and
-broken-signal transport failures. Its optional signal-accurate YIQ path
+broken-signal transport failures, plus explicit Minecraft 26.2 scene capture.
+Its optional signal-accurate YIQ path
 processes brightness and analog color independently instead of applying a
 generic RGB blur.
 
-The pack is deliberately a post-processing pack. It keeps Minecraft's normal
-lighting and applies the VHS treatment after the world is rendered, so it is
-lightweight and works in the Overworld, Nether, and End without dimension-
-specific shader files.
+The pack keeps Minecraft's normal lighting and applies the VHS treatment after
+the world is rendered. Lightweight geometry fallback programs capture that
+vanilla-lit scene reliably on both current Iris and older supported releases, so
+the pack works in the Overworld, Nether, and End without dimension-specific
+shader files.
 
 ## Requirements
 
@@ -167,11 +169,23 @@ so scanlines, grain, RGB separation, and virtual pixels remain visible on macOS.
   low-bandwidth I/Q reconstruction, RF static, dropouts, head-switch tearing,
   liminal lighting, alternating scan fields, grain, and the optional VCR OSD.
 
-This is intentionally the original multi-pass look. Version 1.6 uses the stable
+This is intentionally the original multi-pass look. Version 1.6.1 uses the stable
 GLSL 1.20 and composite-buffer interfaces shared by supported Iris releases from
 Minecraft 1.20.1 through 26.2. It uses one persistent RGBA history buffer plus a
 second playback-generation pass. The actual game and output resolution are
 never reduced.
+
+## Version 1.6.1 — Minecraft 26.2 Framebuffer Fix
+
+- Added explicit lightweight `gbuffers_basic`, `gbuffers_textured`, and
+  `gbuffers_textured_lit` programs so Iris 1.11.2 always captures the real world
+  into `colortex0` before VHS post-processing.
+- Fixed the blue/white corrupted frame seen when the old composite-only pack was
+  enabled on Minecraft 26.2.
+- Made all temporal buffer flips explicit to prevent Iris-version-dependent
+  read/write swaps.
+- Preserved the complete v1.6 VHS pipeline, presets, and support for Minecraft
+  1.20.1 through 26.2.
 
 ## Version 1.6 — Broken Signal
 

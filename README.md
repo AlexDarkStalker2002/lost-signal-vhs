@@ -9,8 +9,8 @@
 Lightweight analog-horror post-processing for Minecraft Java Edition.<br>
 Scanlines, tape grain, tracking tears, color bleed, temporal ghosting, lens
 distortion, sync failures, a proper signal-space YIQ pipeline, and dedicated
-Backrooms, Poolrooms, and Liminal Night lighting. Version 1.6 completes the
-roadmap with tape generations, period camcorders, and broken-signal simulation.
+Backrooms, Poolrooms, and Liminal Night lighting. Version 1.6.1 includes the
+complete roadmap plus a dedicated Minecraft 26.2 / Iris 1.11.2 framebuffer fix.
 
 <p>
   <a href="https://modrinth.com/shader/lost-signal-vhs">
@@ -78,13 +78,14 @@ placing a noise texture over the screen.
 | Java Edition 1.20.1 | Iris 1.7.6 with Sodium | OpenGL | Supported |
 
 > [!IMPORTANT]
-> Iris is not compatible with Minecraft 26.2's Vulkan backend. Keep
+> Version 1.6.1 or newer is required on Minecraft 26.2. Iris is not compatible
+> with Minecraft 26.2's Vulkan backend. Keep
 > **Graphics API** on **Default (OpenGL in 26.2)** or choose
 > **Prefer OpenGL**, then restart the game.
 
 ## Quick installation
 
-1. Download [`Lost_Signal_VHS_v1.6_Complete_Roadmap.zip`](Lost_Signal_VHS_v1.6_Complete_Roadmap.zip).
+1. Download [`Lost_Signal_VHS_v1.6.1_MC26.2_Framebuffer_Fix.zip`](Lost_Signal_VHS_v1.6.1_MC26.2_Framebuffer_Fix.zip).
 2. Put the ZIP into Minecraft's `shaderpacks` directory.
 3. Start Minecraft with Iris.
 4. Open **Options → Video Settings → Shader Packs**.
@@ -160,7 +161,7 @@ the tape, camera, signal, format, and color groups independently.
 - [`Lost_Signal_VHS/`](Lost_Signal_VHS/) — editable shader-pack source
 - [`Lost_Signal_VHS/shaders/lib/settings.glsl`](Lost_Signal_VHS/shaders/lib/settings.glsl) — direct effect controls
 - [`Lost_Signal_VHS/README.md`](Lost_Signal_VHS/README.md) — technical notes and testing checklist
-- [`Lost_Signal_VHS_v1.6_Complete_Roadmap.zip`](Lost_Signal_VHS_v1.6_Complete_Roadmap.zip) — ready-to-install universal release
+- [`Lost_Signal_VHS_v1.6.1_MC26.2_Framebuffer_Fix.zip`](Lost_Signal_VHS_v1.6.1_MC26.2_Framebuffer_Fix.zip) — ready-to-install universal release
 
 ## License
 
