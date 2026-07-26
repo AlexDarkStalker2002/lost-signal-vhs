@@ -55,6 +55,14 @@
 #define HALATION_STRENGTH 0.50 // [0.00 0.10 0.20 0.35 0.50 0.70 1.00] Soft glow around overexposed fluorescent lights.
 #define LUMA_RINGING 0.55 // [0.00 0.10 0.25 0.35 0.45 0.55 0.70 0.90] Bright/dark edge echoes from VHS luma sharpening.
 
+// Liminal-space lighting. Mode 0 leaves the normal VHS grade untouched.
+// The other modes share the same light physics while using distinct palettes.
+#define LIMINAL_MODE 0 // [0 1 2 3] Off, Backrooms, Poolrooms, or Liminal Night.
+#define FLUORESCENT_FLICKER 0.00 // [0.00 0.08 0.15 0.25 0.35 0.50 0.70 1.00] Rolling mains hum and unstable fluorescent ballast.
+#define WHITE_BALANCE_DRIFT 0.00 // [0.00 0.10 0.20 0.30 0.42 0.55 0.70 1.00] Slow warm/cool camcorder white-balance hunting.
+#define EXPOSURE_HUNT_STRENGTH 0.00 // [0.00 0.10 0.20 0.35 0.50 0.70 1.00] Slow gain breathing in empty bright and dark spaces.
+#define LIMINAL_HAZE 0.00 // [0.00 0.10 0.20 0.35 0.50 0.70 1.00] Veiling glare and lifted air around artificial lights.
+
 // Enabled by default for the supplied real-VHS reference look.
 #define VHS_4_3 // Crop the camera image into a centered 4:3 playback frame.
 #define ROUNDED_OVERSCAN // Add a soft rounded black playback border.

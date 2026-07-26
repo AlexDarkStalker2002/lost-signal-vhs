@@ -503,6 +503,75 @@ void main() {
     float highlightBloom = smoothstep(0.68, 0.96, tapeLuma);
     color += vec3(tapeLuma) * highlightBloom * HALATION_STRENGTH * 0.18;
 
+#if LIMINAL_MODE > 0
+    // Liminal Signal lighting models a camcorder under aging fluorescent
+    // fixtures. Each space gets a distinct lamp spectrum, while the slow
+    // white-balance and gain loops remain common to all three modes.
+    vec3 liminalPalette;
+    vec3 liminalHazeColor;
+    float liminalBaseExposure;
+#if LIMINAL_MODE == 1
+    // Backrooms: nicotine-yellow tubes with a weak green phosphor response.
+    liminalPalette = vec3(1.12, 1.05, 0.72);
+    liminalHazeColor = vec3(1.00, 0.91, 0.52);
+    liminalBaseExposure = 0.98;
+#elif LIMINAL_MODE == 2
+    // Poolrooms: cyan tile bounce, humid air, and cleaner highlights.
+    liminalPalette = vec3(0.72, 1.06, 1.16);
+    liminalHazeColor = vec3(0.50, 0.94, 1.00);
+    liminalBaseExposure = 1.04;
+#else
+    // Liminal Night: underexposed blue-green security-camera response.
+    liminalPalette = vec3(0.58, 0.78, 1.12);
+    liminalHazeColor = vec3(0.34, 0.55, 0.90);
+    liminalBaseExposure = 0.78;
+#endif
+
+    color *= liminalPalette * liminalBaseExposure;
+
+    // Consumer auto white balance never quite settles under discontinuous
+    // fluorescent spectra. Correlated noise avoids clean cinematic oscillation.
+    float balanceCycle = smoothNoise21(vec2(time * 0.12, 37.4));
+    vec3 balanceCool = vec3(0.88, 0.98, 1.12);
+    vec3 balanceWarm = vec3(1.12, 1.03, 0.82);
+    vec3 balanceTint = mix(balanceCool, balanceWarm, balanceCycle);
+    color *= mix(vec3(1.0), balanceTint, WHITE_BALANCE_DRIFT);
+
+    // A slow rolling band represents shutter/mains mismatch; higher-frequency
+    // ballast flutter and rare soft brownouts keep the light from feeling like
+    // a simple sine-wave brightness filter.
+#if SIGNAL_STANDARD == 1
+    float fluorescentBeat = 0.37;
+#else
+    float fluorescentBeat = 0.43;
+#endif
+    float rollingMains = sin(frameUv.y * PI * 3.2
+                           - time * PI * 2.0 * fluorescentBeat);
+    float ballastFlutter = smoothNoise21(vec2(time * 8.4, 71.2)) * 2.0 - 1.0;
+    float brownoutNoise = smoothNoise21(vec2(time * 0.23, 18.6));
+    float softBrownout = smoothstep(0.78, 0.97, brownoutNoise);
+    float fluorescentGain = rollingMains * 0.38
+                           + ballastFlutter * 0.24
+                           - softBrownout * 0.62;
+    color *= 1.0 + fluorescentGain * FLUORESCENT_FLICKER * 0.18;
+
+    // Empty liminal rooms make cheap camera gain conspicuous. The response is
+    // biased upward in shadows and drifts slowly instead of pumping every frame.
+    float exposureCycle = smoothNoise21(vec2(time * 0.095, 94.1)) * 2.0 - 1.0;
+    float darkGainDemand = 1.0 - smoothstep(0.08, 0.56, tapeLuma);
+    float exposureHunt = darkGainDemand * 0.16 + exposureCycle * 0.10;
+    color *= 1.0 + exposureHunt * EXPOSURE_HUNT_STRENGTH;
+
+    // Veiling glare lifts the air without pretending to add world-space fog.
+    // It is strongest around lamps and in low-contrast shadow detail.
+    float hazeAmount = LIMINAL_HAZE
+                     * (0.035 + highlightBloom * 0.16
+                        + (1.0 - tapeLuma) * 0.035);
+    vec3 hazeTarget = liminalHazeColor * (0.34 + tapeLuma * 0.46);
+    color = mix(color, hazeTarget, clamp(hazeAmount, 0.0, 0.28));
+    color += liminalHazeColor * highlightBloom * LIMINAL_HAZE * 0.07;
+#endif
+
     // Uneven exposure flutter.
     float flickerWave = sin(time * 19.7) * 0.50
                       + sin(time * 7.3 + 2.0) * 0.28

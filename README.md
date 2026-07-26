@@ -8,7 +8,8 @@
 
 Lightweight analog-horror post-processing for Minecraft Java Edition.<br>
 Scanlines, tape grain, tracking tears, color bleed, temporal ghosting, lens
-distortion, sync failures, and a proper signal-space YIQ pipeline.
+distortion, sync failures, a proper signal-space YIQ pipeline, and dedicated
+Backrooms, Poolrooms, and Liminal Night lighting.
 
 <p>
   <a href="https://modrinth.com/shader/lost-signal-vhs">
@@ -43,7 +44,7 @@ placing a noise texture over the screen.
 - Performance, Balanced, and Cinematic render-quality modes
 - Selectable NTSC and PAL signal timing
 - Delayed automatic exposure, sync failures, and tracking color loss
-- Six presets plus individual controls for every major effect
+- Eight presets plus individual controls for every major effect
 - Overworld, Nether, and End support without dimension-specific shaders
 - English and Russian settings menus
 
@@ -82,7 +83,7 @@ placing a noise texture over the screen.
 
 ## Quick installation
 
-1. Download [`Lost_Signal_VHS_v1.2_Universal.zip`](Lost_Signal_VHS_v1.2_Universal.zip).
+1. Download [`Lost_Signal_VHS_v1.3_Liminal_Signal.zip`](Lost_Signal_VHS_v1.3_Liminal_Signal.zip).
 2. Put the ZIP into Minecraft's `shaderpacks` directory.
 3. Start Minecraft with Iris.
 4. Open **Options → Video Settings → Shader Packs**.
@@ -102,13 +103,28 @@ No resource pack, external texture, or compute-shader support is required.
 |---|---|
 | **Reference VHS** | Saturated green chroma, ringing, halation, and crushed shadows |
 | **Real VHS** | Heavy consumer-tape look with temporal trails and head-switch noise |
-| **Backrooms** | Soft analog horror with fluorescent halation |
+| **Backrooms** | Yellow-green fluorescent hum, white-balance drift, and exposure hunting |
+| **Poolrooms** | Cyan reflected light, humid veiling glare, and restrained tape damage |
+| **Liminal Night** | Underexposed blue-green corridors with unstable dying lights |
 | **Subtle** | Restrained camcorder treatment |
 | **Found Footage** | Analog-horror balance without the VCR overlay |
 | **Damaged Tape** | Aggressive tears, static, separation, and ghosting |
 
 Every preset is only a starting point. Open **Shader Pack Settings** to tune
 the tape, camera, signal, format, and color groups independently.
+
+## Liminal Signal lighting
+
+- **Fluorescent Flicker** combines a rolling mains band, irregular ballast
+  flutter, and soft brownouts instead of using one clean brightness sine wave.
+- **White-Balance Drift** makes a cheap camcorder hunt between warm and cool
+  responses under artificial light.
+- **Exposure Hunting** adds slow gain breathing that becomes most visible in
+  empty dark spaces.
+- **Liminal Haze** adds veiling glare around artificial highlights without
+  pretending to add world-space fog.
+- **Liminal Color Space** can be set to Off, Backrooms, Poolrooms, or Liminal
+  Night independently of the preset.
 
 ## Quality and signal modes
 
@@ -127,7 +143,7 @@ the tape, camera, signal, format, and color groups independently.
 - [`Lost_Signal_VHS/`](Lost_Signal_VHS/) — editable shader-pack source
 - [`Lost_Signal_VHS/shaders/lib/settings.glsl`](Lost_Signal_VHS/shaders/lib/settings.glsl) — direct effect controls
 - [`Lost_Signal_VHS/README.md`](Lost_Signal_VHS/README.md) — technical notes and testing checklist
-- [`Lost_Signal_VHS_v1.2_Universal.zip`](Lost_Signal_VHS_v1.2_Universal.zip) — ready-to-install universal release
+- [`Lost_Signal_VHS_v1.3_Liminal_Signal.zip`](Lost_Signal_VHS_v1.3_Liminal_Signal.zip) — ready-to-install universal release
 
 ## License
 

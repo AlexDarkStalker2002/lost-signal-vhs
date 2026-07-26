@@ -1,15 +1,18 @@
 profile.Reference_VHS=Reference VHS
 profile.Real_VHS=Real VHS
 profile.Backrooms=Backrooms
+profile.Poolrooms=Poolrooms
+profile.Liminal_Night=Liminal Night
 profile.Subtle=Subtle
 profile.Found_Footage=Found Footage
 profile.Damaged_Tape=Damaged Tape
-profile.comment=Reference VHS matches the supplied real-tape screenshots without text. Backrooms is softer, Found Footage is dirtier, and Damaged Tape is heavily degraded.
+profile.comment=Liminal Signal adds Backrooms, Poolrooms, and Liminal Night lighting. Reference VHS preserves the real-tape look, while Damaged Tape is heavily degraded.
 
 screen.FORMAT=Real VHS Capture
 screen.TAPE=Tape Damage
 screen.CAMERA=Camera Defects
 screen.SIGNAL=Signal Instability
+screen.LIMINAL=Liminal Lighting
 screen.COLOR=Color & Framing
 
 option.QUALITY_LEVEL=Render Quality
@@ -80,6 +83,21 @@ option.SPATIAL_ECHO_STRENGTH=Spatial Echo Strength
 option.SPATIAL_ECHO_STRENGTH.comment=Controls the non-temporal high-contrast echo. Performance quality skips this effect.
 option.PIXEL_SCALE=Virtual Pixel Size
 option.PIXEL_SCALE.comment=Quantizes scene sampling while retaining the real display resolution.
+
+option.LIMINAL_MODE=Liminal Color Space
+option.LIMINAL_MODE.comment=Selects no added grade, yellow-green Backrooms lamps, cyan Poolrooms reflections, or underexposed Liminal Night lighting.
+value.LIMINAL_MODE.0=Off
+value.LIMINAL_MODE.1=Backrooms
+value.LIMINAL_MODE.2=Poolrooms
+value.LIMINAL_MODE.3=Liminal Night
+option.FLUORESCENT_FLICKER=Fluorescent Flicker
+option.FLUORESCENT_FLICKER.comment=Adds a rolling mains band, unstable ballast flutter, and occasional soft brownouts.
+option.WHITE_BALANCE_DRIFT=White-Balance Drift
+option.WHITE_BALANCE_DRIFT.comment=Lets cheap camcorder white balance hunt slowly between warm and cool under artificial light.
+option.EXPOSURE_HUNT_STRENGTH=Exposure Hunting
+option.EXPOSURE_HUNT_STRENGTH.comment=Adds slow gain breathing that becomes more visible in empty dark spaces.
+option.LIMINAL_HAZE=Liminal Haze
+option.LIMINAL_HAZE.comment=Adds veiling glare and lifted air around artificial highlights without world-space fog.
 
 option.WASHOUT_STRENGTH=Color Washout
 option.WASHOUT_STRENGTH.comment=Reduces saturation and contrast, lifts black, and softens highlights.

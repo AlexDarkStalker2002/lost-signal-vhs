@@ -1,15 +1,18 @@
 profile.Reference_VHS=Эталонная VHS
 profile.Real_VHS=Настоящая VHS
 profile.Backrooms=Закулисье
+profile.Poolrooms=Бассейновые комнаты
+profile.Liminal_Night=Лиминальная ночь
 profile.Subtle=Деликатный
 profile.Found_Footage=Найденная запись
 profile.Damaged_Tape=Повреждённая кассета
-profile.comment=Эталонная VHS повторяет вид реальной кассеты без текста. «Закулисье» мягче, «Найденная запись» грязнее, а «Повреждённая кассета» даёт самые сильные помехи.
+profile.comment=Liminal Signal добавляет освещение «Закулисья», бассейновых комнат и лиминальной ночи. «Эталонная VHS» сохраняет вид реальной кассеты.
 
 screen.FORMAT=Формат VHS
 screen.TAPE=Повреждения ленты
 screen.CAMERA=Дефекты камеры
 screen.SIGNAL=Нестабильность сигнала
+screen.LIMINAL=Лиминальное освещение
 screen.COLOR=Цвет и кадрирование
 
 option.QUALITY_LEVEL=Качество рендера
@@ -80,6 +83,21 @@ option.SPATIAL_ECHO_STRENGTH=Сила пространственного эха
 option.SPATIAL_ECHO_STRENGTH.comment=Управляет контрастным однокадровым повтором. В режиме производительности эффект пропускается.
 option.PIXEL_SCALE=Размер виртуального пикселя
 option.PIXEL_SCALE.comment=Укрупняет шаг выборки сигнала, не изменяя реальное разрешение экрана.
+
+option.LIMINAL_MODE=Лиминальная палитра
+option.LIMINAL_MODE.comment=Отключает дополнительную цветокоррекцию либо выбирает жёлто-зелёное «Закулисье», голубые бассейновые комнаты или тёмную лиминальную ночь.
+value.LIMINAL_MODE.0=Выкл.
+value.LIMINAL_MODE.1=Закулисье
+value.LIMINAL_MODE.2=Бассейновые комнаты
+value.LIMINAL_MODE.3=Лиминальная ночь
+option.FLUORESCENT_FLICKER=Мерцание люминесцентных ламп
+option.FLUORESCENT_FLICKER.comment=Добавляет бегущую полосу сетевой частоты, дрожание балласта и редкие мягкие провалы яркости.
+option.WHITE_BALANCE_DRIFT=Дрейф баланса белого
+option.WHITE_BALANCE_DRIFT.comment=Заставляет дешёвую камеру медленно метаться между тёплым и холодным балансом под искусственным светом.
+option.EXPOSURE_HUNT_STRENGTH=Поиск экспозиции
+option.EXPOSURE_HUNT_STRENGTH.comment=Добавляет медленное дыхание усиления, особенно заметное в пустых тёмных пространствах.
+option.LIMINAL_HAZE=Лиминальная дымка
+option.LIMINAL_HAZE.comment=Добавляет воздушную засветку вокруг искусственного света без имитации мирового тумана.
 
 option.WASHOUT_STRENGTH=Выцветание
 option.WASHOUT_STRENGTH.comment=Уменьшает насыщенность и контраст, поднимает чёрный и смягчает светлые области.
