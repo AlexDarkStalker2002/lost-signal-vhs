@@ -38,6 +38,14 @@
 #define CHROMA_PERSISTENCE // Lets recorded color trail longer than luminance.
 #define CHROMA_PERSISTENCE_STRENGTH 0.20 // [0.00 0.05 0.10 0.15 0.20 0.30 0.45] Previous-frame color retained during movement.
 
+// Composite decoder. The consumer notch path deliberately leaks high-frequency
+// luma into color and color back into luma; the two-line comb path suppresses
+// most of that leakage on vertically correlated picture detail.
+#define COMPOSITE_DECODER 1 // [0 1 2] Bypass, consumer notch filter, or two-line comb filter.
+#define DOT_CRAWL_STRENGTH 0.25 // [0.00 0.10 0.20 0.25 0.35 0.50 0.70 1.00] Moving subcarrier dots along sharp color and brightness edges.
+#define CROSS_COLOR_STRENGTH 0.20 // [0.00 0.08 0.15 0.20 0.30 0.45 0.65 1.00] False rainbow color decoded from fine luminance detail.
+#define CROSS_LUMA_STRENGTH 0.15 // [0.00 0.08 0.15 0.20 0.30 0.45 0.65 1.00] Chroma carrier leaking into the reconstructed luminance channel.
+
 // Camera imperfections
 #define CHROMA_AMOUNT 4.0 // [0.0 0.5 1.0 1.5 2.5 4.0 6.0 9.0] Red/blue channel misalignment, in pixels.
 #define LENS_DISTORTION 0.040 // [0.000 0.008 0.015 0.025 0.040 0.060 0.085] Consumer CRT/camcorder barrel distortion.
@@ -47,6 +55,8 @@
 #define MOTION_SMEAR 4.0 // [0.0 0.5 1.0 1.5 2.5 4.0 6.0] Horizontal luma smear radius, in pixels.
 #define GHOST_STRENGTH 0.18 // [0.00 0.04 0.08 0.13 0.18 0.25 0.35] Amount of the previous processed frame retained.
 #define HISTORY_STABILIZATION 0.55 // [0.00 0.25 0.40 0.55 0.70 0.85 1.00] Rejects implausible history colors during fast camera motion.
+#define MOTION_AWARE_HISTORY // Reprojects the previous processed frame through camera depth and matrices.
+#define REPROJECTION_STRENGTH 0.85 // [0.00 0.25 0.40 0.55 0.70 0.85 1.00] Moves temporal trails with stable world geometry while retaining some analog lag.
 #define SPATIAL_ECHO // Adds a separate single-frame horizontal tape echo.
 #define SPATIAL_ECHO_STRENGTH 0.08 // [0.00 0.03 0.05 0.08 0.12 0.18 0.25] Strength of the non-temporal horizontal echo.
 #define PIXEL_SCALE 4.0 // [1.0 1.5 2.0 2.5 3.0 4.0 6.0] Virtual tape sampling cell size.
@@ -78,6 +88,9 @@
 #define TRACKING_CONTROL 0.0 // [-1.0 -0.7 -0.4 0.0 0.4 0.7 1.0] Manual tracking bias and rolling-band position.
 #define RF_INTERFERENCE_STRENGTH 0.00 // [0.00 0.10 0.20 0.35 0.50 0.70 1.00] Radio-frequency herringbone noise and bright interference bands.
 #define TAPE_CHEW_STRENGTH 0.00 // [0.00 0.10 0.20 0.35 0.50 0.70 1.00] Rare buckled-tape displacement and noise.
+#define TAPE_DEFECT_MEMORY // Keeps oxide dropouts attached to a continuously moving virtual tape coordinate.
+#define DEFECT_DENSITY 0.15 // [0.00 0.05 0.10 0.15 0.20 0.35 0.50 0.70] Frequency of persistent oxide holes and damaged helical tracks.
+#define DEFECT_STRENGTH 0.25 // [0.00 0.10 0.20 0.25 0.35 0.50 0.70 1.00] Visibility, desaturation, and RF noise of persistent tape defects.
 //#define FRAME_REPEAT // Lets the deck repeat the previous processed frame.
 #define FRAME_REPEAT_FREQUENCY 0.00 // [0.00 0.02 0.04 0.08 0.14 0.22 0.35] Chance of a repeated-frame event.
 #define FRAME_REPEAT_STRENGTH 0.00 // [0.00 0.25 0.50 0.70 0.85 1.00] Previous-frame opacity during a repeat.

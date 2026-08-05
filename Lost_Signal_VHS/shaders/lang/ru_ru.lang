@@ -6,7 +6,7 @@ profile.Liminal_Night=Лиминальная ночь
 profile.Subtle=Деликатный
 profile.Found_Footage=Найденная запись
 profile.Damaged_Tape=Повреждённая кассета
-profile.comment=Одиннадцать образов: от чистой VHS и лиминальных пространств до «Прокатной кассеты», «Камкордера 1996» и тяжёлого сбоя «Сломанный сигнал».
+profile.comment=Двенадцать образов: от чистой VHS и лиминальных пространств до «Композитного декодера», «Прокатной кассеты», «Камкордера 1996» и тяжёлого сбоя «Сломанный сигнал».
 
 screen.FORMAT=Формат VHS
 screen.TAPE=Повреждения ленты
@@ -193,3 +193,30 @@ option.FRAME_REPEAT_FREQUENCY=Частота повторов
 option.FRAME_REPEAT_FREQUENCY.comment=Вероятность повтора кадра в каждом интервале работы механизма.
 option.FRAME_REPEAT_STRENGTH=Сила повтора
 option.FRAME_REPEAT_STRENGTH.comment=Определяет, насколько предыдущий кадр замещает текущий во время заедания.
+
+profile.Composite_Decode=Композитный декодер
+screen.DECODER=Композитный декодер
+
+option.COMPOSITE_DECODER=Схема декодера
+option.COMPOSITE_DECODER.comment=Отключает композитные артефакты, включает дешёвый режекторный фильтр или более чистый двухстрочный гребенчатый фильтр.
+value.COMPOSITE_DECODER.0=Без декодирования
+value.COMPOSITE_DECODER.1=Бытовой режекторный
+value.COMPOSITE_DECODER.2=Двухстрочный гребенчатый
+option.DOT_CRAWL_STRENGTH=Бегущие точки
+option.DOT_CRAWL_STRENGTH.comment=Добавляет движущиеся точки цветовой поднесущей на резких границах цвета и яркости.
+option.CROSS_COLOR_STRENGTH=Ложные радужные цвета
+option.CROSS_COLOR_STRENGTH.comment=Превращает мелкие детали яркости в ложные цветные радуги, как несовершенный композитный декодер.
+option.CROSS_LUMA_STRENGTH=Утечка цвета в яркость
+option.CROSS_LUMA_STRENGTH.comment=Добавляет цветовую поднесущую в канал яркости в виде висящих точек и текстуры на границах.
+
+option.MOTION_AWARE_HISTORY=История с учётом движения
+option.MOTION_AWARE_HISTORY.comment=Перепроецирует неподвижную геометрию в предыдущий кадр камеры, сохраняя аналоговое запаздывание.
+option.REPROJECTION_STRENGTH=Сила перепроекции
+option.REPROJECTION_STRENGTH.comment=Определяет, насколько временные шлейфы следуют за геометрией мира вместо фиксации в экранных координатах.
+
+option.TAPE_DEFECT_MEMORY=Постоянные дефекты ленты
+option.TAPE_DEFECT_MEMORY.comment=Привязывает повреждённые дорожки к непрерывно движущейся виртуальной ленте вместо новой генерации в каждом кадре.
+option.DEFECT_DENSITY=Плотность дефектов
+option.DEFECT_DENSITY.comment=Определяет частоту постоянных осыпаний оксида и повреждённых дорожек.
+option.DEFECT_STRENGTH=Сила дефектов
+option.DEFECT_STRENGTH.comment=Управляет радиошумом, потерей яркости и потерей цвета внутри постоянных дефектов.

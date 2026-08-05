@@ -3,9 +3,10 @@
 An Iris shader pack for Minecraft Java Edition that turns the vanilla scene into
 cheap, unstable found footage: scanlines, tape grain, tracking tears, color
 bleeding, camcorder lens distortion, flicker, temporal ghosting, frame jitter,
-and a yellow-green security-camera grade. Version 1.6.1 includes the Liminal
-Signal lighting, tape-generation model, period camcorder simulation, and
-broken-signal transport failures, plus explicit Minecraft 26.2 scene capture.
+and a yellow-green security-camera grade. Version 1.7 adds camera-aware temporal
+reprojection, consumer composite-decoder artifacts, and persistent physical
+tape defects while preserving the Minecraft 26.2 framebuffer fix, Liminal
+Signal lighting, tape generations, camcorders, and broken-signal transport.
 Its optional signal-accurate YIQ path
 processes brightness and analog color independently instead of applying a
 generic RGB blur.
@@ -70,13 +71,21 @@ Do not place the pack in `resourcepacks`; this is an Iris shader pack.
 8. In **Signal Instability**, compare **Signal-Accurate YIQ** on and off while
    looking at a sharp red or blue edge. YIQ mode should keep the brightness edge
    legible while its color trails horizontally and wobbles slightly between lines.
+9. Look at a fine black-and-white texture with **Consumer Notch** selected. It
+   should develop moving false color and edge dots; **Two-Line Comb** should
+   reduce them on stable horizontal detail.
+10. Strafe and turn around a nearby pillar with **Motion-Aware History** enabled.
+    The faint tape trail should follow the pillar instead of sticking to the
+    original screen coordinate. Sky pixels should remain stable.
+11. Raise **Defect Density** temporarily and watch one damaged track cross
+    several fields without changing its horizontal shape every rendered frame.
 
 For shader compile diagnostics, open the Iris shader selection screen and press
 `Ctrl+D` on Windows/Linux or `Cmd+D` on macOS to toggle Iris debug mode.
 
 ## Tuning
 
-The settings menu provides eleven presets:
+The settings menu provides twelve presets:
 
 - **Reference VHS**: matches the supplied real-tape screenshots: saturated green
   chroma, edge ringing, crushed shadows, bright halation, and no text overlay.
@@ -97,6 +106,8 @@ The settings menu provides eleven presets:
   mild digital zoom, and slow autofocus hunting.
 - **Broken Signal**: severe mistracking, RF herringbone, buckled tape, and
   genuine previous-frame repetition.
+- **Composite Decode**: consumer notch-filter leakage, crawling edge dots,
+  false rainbow color, motion-aware trails, and persistent oxide defects.
 
 The VCR OSD is disabled by default but remains available as an option. **Rounded
 Overscan** now controls only the curved black mask; disabling it keeps lens
@@ -116,7 +127,8 @@ space-specific looks:
 - **Liminal Haze** adds veiling glare around artificial highlights without
   pretending to inject world-space fog.
 
-The **Signal Instability** page contains five fully independent effects. Each
+The **Signal Instability** page contains independent temporal and transport
+effects. Each
 has an on/off switch and/or its own intensity or frequency control:
 
 - **Signal-Accurate YIQ** converts RGB into separate Y brightness and I/Q color
@@ -133,14 +145,29 @@ has an on/off switch and/or its own intensity or frequency control:
   events. The frequency defaults are intentionally low.
 - **Separate Chroma Persistence** keeps only the previous frame's color trail,
   so saturation lingers longer than luminance on moving objects.
+- **Motion-Aware History** reconstructs the current position from depth and
+  previous camera matrices. Invalid depth, sky, and off-screen motion use a
+  conservative screen-space fallback.
 
-The Subtle preset disables all five switches. Other presets enable them at
-different strengths, and every switch can be changed independently afterward.
+The Subtle preset disables the aggressive signal switches. Other presets enable
+them at different strengths, and every switch can be changed independently.
+
+The **Composite Decoder** page models the imperfect separation of brightness
+and color in a consumer composite-video circuit:
+
+- **Consumer Notch** produces visible dot crawl, cross-color rainbows from fine
+  luminance texture, and cross-luma carrier leakage on saturated edges.
+- **Two-Line Comb** compares adjacent raster lines, suppressing most leakage on
+  correlated detail while preserving errors around motion and diagonals.
+- **Bypass** removes these decoder-specific artifacts without disabling the
+  broader YIQ tape-bandwidth model.
 
 The **Tape Generation** page separates cassette format from copy history.
 VHS SP, LP, SLP, VHS-C, and Worn Rental modes have distinct luma resolution,
 chroma retention, and noise floors. Up to five analog copy generations compound
-color loss, cross-color contamination, luma stepping, and fading.
+color loss, cross-color contamination, luma stepping, and fading. Persistent
+tape defects use a longitudinal virtual tape coordinate, so the same damaged
+helical track keeps its shape while it travels through several fields.
 
 The **Camcorder** page selects neutral, 1980s tube, 1990s VHS, or early-digital
 camera response. Its optional recorded HUD draws a blinking REC lamp, battery,
@@ -161,19 +188,34 @@ so scanlines, grain, RGB separation, and virtual pixels remain visible on macOS.
 ## Pass layout
 
 - `composite`: applies the first tape encode, camera drift, optional YIQ
-  bandwidth loss and phase error, tracking damage, automatic gain pumping,
-  sync failure, chroma loss, and separate luma/chroma temporal persistence.
+  bandwidth loss and phase error, composite-decoder leakage, tracking damage,
+  automatic gain pumping, sync failure, chroma loss, and depth-reprojected
+  luma/chroma temporal persistence.
 - `composite1`: copies the encoded image into persistent `colortex4` for the
   following frame's genuine moving-image ghost trail.
 - `final`: adds the second-generation VCR/CRT treatment, 4:3 overscan, explicit
-  low-bandwidth I/Q reconstruction, RF static, dropouts, head-switch tearing,
-  liminal lighting, alternating scan fields, grain, and the optional VCR OSD.
+  low-bandwidth I/Q reconstruction, playback decoder leakage, persistent oxide
+  dropouts, RF static, head-switch tearing, liminal lighting, alternating scan
+  fields, grain, and the optional VCR OSD.
 
-This is intentionally the original multi-pass look. Version 1.6.1 uses the stable
+This is intentionally the original multi-pass look. Version 1.7 uses the stable
 GLSL 1.20 and composite-buffer interfaces shared by supported Iris releases from
 Minecraft 1.20.1 through 26.2. It uses one persistent RGBA history buffer plus a
 second playback-generation pass. The actual game and output resolution are
 never reduced.
+
+## Version 1.7 — Composite Decode
+
+- Added depth- and camera-matrix-based reprojection for the processed history
+  buffer, with conservative sky, invalid-depth, and off-screen fallbacks.
+- Added selectable bypass, consumer notch, and two-line comb decoder circuits.
+- Added signal-domain dot crawl, false cross-color rainbows, and cross-luma
+  carrier leakage in both the recording and playback generations.
+- Added persistent oxide holes and damaged helical tracks tied to a continuously
+  moving virtual tape coordinate.
+- Added the **Composite Decode** preset and complete English/Russian controls.
+- Kept GLSL 1.20, OpenGL, and the Minecraft 1.20.1 through 26.2 compatibility
+  target established by v1.6.1.
 
 ## Version 1.6.1 — Minecraft 26.2 Framebuffer Fix
 

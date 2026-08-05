@@ -5,6 +5,15 @@
 // colortex4 = last frame's fully processed VHS image.
 uniform sampler2D colortex0;
 uniform sampler2D colortex4;
+uniform sampler2D depthtex0;
+uniform sampler2D depthtex2;
+
+uniform mat4 gbufferProjectionInverse;
+uniform mat4 gbufferModelViewInverse;
+uniform mat4 gbufferPreviousProjection;
+uniform mat4 gbufferPreviousModelView;
+uniform vec3 cameraPosition;
+uniform vec3 previousCameraPosition;
 
 uniform float viewWidth;
 uniform float viewHeight;
@@ -60,6 +69,49 @@ vec2 clampUV(vec2 uv, vec2 pixel) {
 vec2 virtualPixels(vec2 uv, vec2 resolution) {
     vec2 virtualResolution = max(resolution / PIXEL_SCALE, vec2(1.0));
     return (floor(uv * virtualResolution) + 0.5) / virtualResolution;
+}
+
+// Move a current screen pixel into the previous camera frame. Sky pixels and
+// invalid/off-screen projections fall back to ordinary screen-space history,
+// which keeps the pack safe on dimensions and Iris versions where depth is 1.
+vec2 reprojectHistoryUV(vec2 screenUv, vec2 pixel, out float confidence) {
+    confidence = 0.0;
+#ifdef MOTION_AWARE_HISTORY
+    float depth = texture2D(depthtex0, screenUv).r;
+    if (depth < 0.99998) {
+        // depthtex2 excludes translucent geometry and the first-person hand.
+        // Their special projection/depth paths are safer in screen space.
+        float stableDepth = texture2D(depthtex2, screenUv).r;
+        float depthAgreement = 1.0
+                             - step(0.0005, abs(depth - stableDepth));
+        vec4 clipPosition = vec4(screenUv * 2.0 - 1.0,
+                                 depth * 2.0 - 1.0,
+                                 1.0);
+        vec4 viewPosition = gbufferProjectionInverse * clipPosition;
+        if (abs(viewPosition.w) > 0.00001) {
+            viewPosition /= viewPosition.w;
+
+            vec4 worldPosition = gbufferModelViewInverse * viewPosition;
+            worldPosition.xyz += cameraPosition;
+            worldPosition.xyz -= previousCameraPosition;
+
+            vec4 previousClip = gbufferPreviousProjection
+                              * gbufferPreviousModelView
+                              * worldPosition;
+            if (previousClip.w > 0.00001) {
+                vec2 previousUv = previousClip.xy / previousClip.w
+                                * 0.5 + 0.5;
+                vec2 lowerInside = step(vec2(0.0), previousUv);
+                vec2 upperInside = step(previousUv, vec2(1.0));
+                confidence = lowerInside.x * lowerInside.y
+                           * upperInside.x * upperInside.y
+                           * depthAgreement;
+                return clampUV(previousUv, pixel);
+            }
+        }
+    }
+#endif
+    return clampUV(screenUv, pixel);
 }
 
 // Washed-out tape stock plus a yellow-green security-camera cast. Luma is kept
@@ -272,6 +324,53 @@ void main() {
     firstPhaseAngle *= mod(firstChromaLine, 2.0) * 2.0 - 1.0;
 #endif
     vec2 tapeChroma = rotateChroma(vec2(tapeI, tapeQ), firstPhaseAngle);
+
+    // Composite encode/decode leakage. A low-cost consumer notch filter cannot
+    // perfectly separate high-frequency luminance from the color subcarrier,
+    // so sharp texture detail becomes false rainbow color and saturated edges
+    // leave a moving dot pattern in luminance. The two-line comb option compares
+    // adjacent scan lines and suppresses leakage where the picture correlates.
+#if COMPOSITE_DECODER > 0
+    float compositeLine = floor(texcoord.y * VHS_SIGNAL_LINES);
+    float carrierSample = uv.x * viewWidth / max(PIXEL_SCALE, 1.0);
+    float carrierPhase = carrierSample * PI * 0.50
+                       + compositeLine * PI
+                       + mod(frame, 4.0) * PI * 0.50;
+#if SIGNAL_STANDARD == 1
+    carrierPhase += mod(compositeLine, 2.0) * PI * 0.50;
+#endif
+    vec2 carrier = vec2(cos(carrierPhase), sin(carrierPhase));
+    float lumaHigh = centerYiq.x
+                   - (positiveYiq.x + negativeYiq.x) * 0.50;
+    float decoderLeak = 1.0;
+
+#if COMPOSITE_DECODER == 2
+#if QUALITY_LEVEL == 0
+    decoderLeak = 0.52;
+#else
+    vec2 adjacentUv = clampUV(
+        uv + vec2(0.0, 1.0 / VHS_SIGNAL_LINES), pixel);
+    vec3 adjacentYiq = rgbToYiq(texture2D(colortex0, adjacentUv).rgb);
+    float adjacentDifference = abs(centerYiq.x - adjacentYiq.x)
+                             + length(centerYiq.yz - adjacentYiq.yz) * 0.35;
+    float lineCorrelation = 1.0
+                          - smoothstep(0.018, 0.22, adjacentDifference);
+    decoderLeak = mix(0.62, 0.18, lineCorrelation);
+#endif
+#endif
+
+    float edgeMask = clamp(abs(lumaHigh) * 8.0, 0.0, 1.0);
+    float dotCarrier = sin(carrierPhase + compositeLine * PI * 0.50);
+    float chromaOnCarrier = dot(tapeChroma, carrier);
+
+    tapeY += (chromaOnCarrier * CROSS_LUMA_STRENGTH * 0.24
+              + dotCarrier * edgeMask * DOT_CRAWL_STRENGTH * 0.026)
+           * decoderLeak;
+    tapeChroma += carrier
+                * (lumaHigh * CROSS_COLOR_STRENGTH * 0.58
+                   + dotCarrier * edgeMask * DOT_CRAWL_STRENGTH * 0.013)
+                * decoderLeak;
+#endif
     color = yiqToRgb(vec3(tapeY, tapeChroma));
 #else
     // Legacy RGB mode is kept as an option for comparison and older hardware.
@@ -326,14 +425,21 @@ void main() {
     color = gradeOldTape(color);
 
     // -------------------------------------------------------------------------
-    // Temporal ghosting. colortex4 contains the last *processed* frame. Keeping
-    // it in screen space creates convincing trails on moving objects and a faint
-    // double image during camera movement, like slow analog phosphor/tape decay.
+    // Temporal ghosting. colortex4 contains the last *processed* frame. Stable
+    // world geometry is reprojected through depth and the previous camera while
+    // sky/off-screen pixels safely fall back to the original screen-space path.
+    // A partial blend preserves genuine analog lag instead of turning the
+    // history buffer into modern temporal anti-aliasing.
     // -------------------------------------------------------------------------
     if (frameCounter > 2) {
         vec2 historyOffset = vec2(-0.65 * MOTION_SMEAR * pixel.x, 0.0);
-        vec3 history = texture2D(colortex4,
-                                 clampUV(texcoord + historyOffset, pixel)).rgb;
+        float reprojectionConfidence;
+        vec2 reprojectedUv = reprojectHistoryUV(texcoord, pixel,
+                                                reprojectionConfidence);
+        vec2 historyUv = mix(texcoord, reprojectedUv,
+                             REPROJECTION_STRENGTH * reprojectionConfidence);
+        historyUv = clampUV(historyUv + historyOffset, pixel);
+        vec3 history = texture2D(colortex4, historyUv).rgb;
 
         // Reject history colors that are implausibly far from the current
         // processed frame. This limits full-screen double exposure during fast
@@ -345,7 +451,8 @@ void main() {
                         color + vec3(historyRange));
         float difference = length(color - history);
         float adaptiveGhost = GHOST_STRENGTH
-                            * mix(0.68, 1.22, smoothstep(0.04, 0.55, difference));
+                            * mix(0.68, 1.22, smoothstep(0.04, 0.55, difference))
+                            * mix(0.92, 1.0, reprojectionConfidence);
         color = mix(color, history, clamp(adaptiveGhost, 0.0, 0.45));
 
 #ifdef CHROMA_PERSISTENCE

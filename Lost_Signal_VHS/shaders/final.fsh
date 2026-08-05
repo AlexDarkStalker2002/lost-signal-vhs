@@ -544,6 +544,60 @@ void main() {
     phaseAngle *= mod(chromaLine, 2.0) * 2.0 - 1.0;
 #endif
     tapeChroma = rotateChroma(tapeChroma, phaseAngle);
+
+    // Playback composite decoder. This second, lighter leakage stage represents
+    // the VCR's RF output and the consumer display decoder after the recorded
+    // tape generation has already lost bandwidth in composite.fsh.
+#if COMPOSITE_DECODER > 0
+    float playbackSignalLine = floor(frameUv.y * VHS_SIGNAL_LINES);
+    float playbackCarrierSample = frameUv.x * viewWidth
+                                / max(displayScale * PIXEL_SCALE, 1.0);
+    float playbackCarrierPhase = playbackCarrierSample * PI * 0.50
+                               + playbackSignalLine * PI
+                               + mod(frame, 4.0) * PI * 0.50;
+#if SIGNAL_STANDARD == 1
+    playbackCarrierPhase += mod(playbackSignalLine, 2.0) * PI * 0.50;
+#endif
+    vec2 playbackCarrier = vec2(cos(playbackCarrierPhase),
+                                sin(playbackCarrierPhase));
+    float leftLuma = dot(lumaLeft1, vec3(0.299, 0.587, 0.114));
+    float rightLuma = dot(lumaRight1, vec3(0.299, 0.587, 0.114));
+    float playbackLumaHigh = centerLuma
+                           - (leftLuma + rightLuma) * 0.50;
+    float playbackDecoderLeak = 1.0;
+
+#if COMPOSITE_DECODER == 2
+#if QUALITY_LEVEL == 0
+    playbackDecoderLeak = 0.52;
+#else
+    vec3 adjacentPlaybackYiq = rgbToYiq(texture2D(
+        colortex0,
+        safeUV(chromaUv + vec2(0.0, 1.0 / VHS_SIGNAL_LINES), pixel)).rgb);
+    float playbackLineDifference = abs(chromaCenter.x
+                                     - adjacentPlaybackYiq.x)
+                                 + length(chromaCenter.yz
+                                        - adjacentPlaybackYiq.yz) * 0.35;
+    float playbackLineCorrelation = 1.0
+        - smoothstep(0.018, 0.22, playbackLineDifference);
+    playbackDecoderLeak = mix(0.62, 0.18,
+                              playbackLineCorrelation);
+#endif
+#endif
+
+    float playbackEdge = clamp(abs(playbackLumaHigh) * 8.0, 0.0, 1.0);
+    float playbackDots = sin(playbackCarrierPhase
+                           + playbackSignalLine * PI * 0.50);
+    float playbackChromaCarrier = dot(tapeChroma, playbackCarrier);
+    tapeLuma += (playbackChromaCarrier * CROSS_LUMA_STRENGTH * 0.18
+                 + playbackDots * playbackEdge
+                   * DOT_CRAWL_STRENGTH * 0.020)
+              * playbackDecoderLeak;
+    tapeChroma += playbackCarrier
+                * (playbackLumaHigh * CROSS_COLOR_STRENGTH * 0.46
+                   + playbackDots * playbackEdge
+                     * DOT_CRAWL_STRENGTH * 0.010)
+                * playbackDecoderLeak;
+#endif
     color = yiqToRgb(vec3(tapeLuma,
                           tapeChroma * COLOR_SATURATION));
 #else
@@ -802,6 +856,56 @@ void main() {
                                      tapeLine + frame * 3.0));
     float dropout = dropoutEvent * dropoutBand * dropoutSpan;
     color = mix(color, vec3(0.52 + dropoutNoise * 0.42), dropout * 0.74);
+
+#ifdef TAPE_DEFECT_MEMORY
+    // Persistent oxide defects use a virtual longitudinal tape coordinate. A
+    // seeded damaged track therefore travels through the raster over several
+    // fields instead of being regenerated independently on every game frame.
+    // The same time position always reconstructs the same dropout shape.
+    float virtualTapePosition = time * mix(0.018, 0.032, TAPE_WEAR);
+    float defectCoordinate = (virtualTapePosition + frameUv.y * 0.060) * 18.0;
+    float defectTrack = floor(defectCoordinate);
+    float defectAge = fract(defectCoordinate);
+    float persistentEvent = step(1.0 - DEFECT_DENSITY * 0.72,
+                                 hash21(vec2(defectTrack, 901.7)));
+    float persistentCenter = mix(0.15, 0.85,
+                                 hash21(vec2(defectTrack, 447.2)));
+    float persistentWidth = mix(0.018, 0.072,
+                                hash21(vec2(defectTrack, 612.9)));
+    float persistentBand = 1.0 - smoothstep(
+        persistentWidth, persistentWidth * 2.35,
+        abs(defectAge - persistentCenter));
+
+    float persistentStart = hash21(vec2(defectTrack, 159.4));
+    float persistentLength = mix(0.07, 0.42,
+                                 hash21(vec2(defectTrack, 328.6)));
+    float persistentDistance = abs(
+        fract(frameUv.x - persistentStart + 0.5) - 0.5);
+    float persistentSpan = 1.0 - smoothstep(
+        persistentLength, persistentLength + 0.030,
+        persistentDistance);
+    float persistentFray = smoothNoise21(vec2(
+        frameUv.x * 145.0 + defectTrack * 3.7,
+        defectTrack * 0.41));
+    float persistentDefect = persistentEvent * persistentBand
+                           * persistentSpan
+                           * mix(0.48, 1.0, persistentFray);
+
+    // Damaged helical tracks lose chroma first, then expose a noisy light or
+    // dark RF level depending on the physical oxide hole.
+    vec3 defectYiq = rgbToYiq(color);
+    defectYiq.yz *= 1.0 - persistentDefect
+                          * DEFECT_STRENGTH * 0.92;
+    color = yiqToRgb(defectYiq);
+    float persistentNoise = hash21(vec2(
+        floor(frameUv.x * 420.0), defectTrack * 11.3));
+    float defectPolarity = step(0.48, hash21(vec2(defectTrack, 773.1)));
+    float defectLevel = mix(0.025 + persistentNoise * 0.10,
+                            0.58 + persistentNoise * 0.38,
+                            defectPolarity);
+    color = mix(color, vec3(defectLevel),
+                persistentDefect * DEFECT_STRENGTH * 0.82);
+#endif
 
     // Static appears as brief bursts, not permanent film grain. A line mask
     // gives each burst the clustered bands seen when a VCR momentarily loses RF.

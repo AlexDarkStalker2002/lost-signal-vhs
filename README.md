@@ -9,8 +9,9 @@
 Lightweight analog-horror post-processing for Minecraft Java Edition.<br>
 Scanlines, tape grain, tracking tears, color bleed, temporal ghosting, lens
 distortion, sync failures, a proper signal-space YIQ pipeline, and dedicated
-Backrooms, Poolrooms, and Liminal Night lighting. Version 1.6.1 includes the
-complete roadmap plus a dedicated Minecraft 26.2 / Iris 1.11.2 framebuffer fix.
+Backrooms, Poolrooms, and Liminal Night lighting. Version 1.7 adds camera-aware
+temporal reprojection, a real composite-decoder artifact model, persistent tape
+defects, and the dedicated Minecraft 26.2 / Iris 1.11.2 framebuffer fix.
 
 <p>
   <a href="https://modrinth.com/shader/lost-signal-vhs">
@@ -39,13 +40,16 @@ placing a noise texture over the screen.
 - Tracking tears, head-switch noise, frame jitter, and curved overscan
 - Chroma bleed, RGB separation, phase wobble, and YIQ color processing
 - Persistent temporal ghosting using the previous processed frame
-- History stabilization that keeps trails without full-screen double exposure
+- Depth-based motion-aware history that follows stable world geometry
+- Consumer notch and two-line comb decoder models
+- Dot crawl, cross-color rainbows, and cross-luma carrier leakage
+- Persistent oxide defects tied to a continuously moving virtual tape
 - True NTSC/PAL field weaving through the persistent history buffer
 - Smooth mechanically correlated time-base error and feathered tracking tears
 - Performance, Balanced, and Cinematic render-quality modes
 - Selectable NTSC and PAL signal timing
 - Delayed automatic exposure, sync failures, and tracking color loss
-- Eleven presets plus individual controls for every major effect
+- Twelve presets plus individual controls for every major effect
 - Overworld, Nether, and End support without dimension-specific shaders
 - English and Russian settings menus
 
@@ -97,7 +101,7 @@ the scene playable.
 
 ## Quick installation
 
-1. Download [`Lost_Signal_VHS_v1.6.1_MC26.2_Framebuffer_Fix.zip`](Lost_Signal_VHS_v1.6.1_MC26.2_Framebuffer_Fix.zip).
+1. Download [`Lost_Signal_VHS_v1.7_Composite_Decode.zip`](Lost_Signal_VHS_v1.7_Composite_Decode.zip).
 2. Put the ZIP into Minecraft's `shaderpacks` directory.
 3. Start Minecraft with Iris.
 4. Open **Options → Video Settings → Shader Packs**.
@@ -126,6 +130,7 @@ No resource pack, external texture, or compute-shader support is required.
 | **Rental Tape** | Four analog copies, oxide wear, fading, and weak RF ingress |
 | **Camcorder 1996** | VHS-C color response with REC, battery, timecode, zoom, and autofocus hunting |
 | **Broken Signal** | Severe mistracking, RF herringbone, chewed tape, and repeated frames |
+| **Composite Decode** | Consumer composite leakage, crawling edge dots, false color, and persistent oxide defects |
 
 Every preset is only a starting point. Open **Shader Pack Settings** to tune
 the tape, camera, signal, format, and color groups independently.
@@ -168,12 +173,25 @@ the tape, camera, signal, format, and color groups independently.
 - **Interlaced Field Weave** refreshes one raster-line parity per field and
   retains the other parity from history, creating real motion combing.
 
+## Version 1.7 signal model
+
+- **Motion-Aware History** reconstructs the current world position from depth,
+  projects it through the previous camera, and falls back to screen-space
+  history for sky, invalid depth, and off-screen motion.
+- **Consumer Notch** deliberately leaks fine luminance into chroma and chroma
+  back into luminance, producing dot crawl, false rainbow color, and hanging
+  dots instead of a generic RGB glitch.
+- **Two-Line Comb** compares adjacent raster lines and suppresses most leakage
+  on correlated detail while retaining artifacts around motion and diagonals.
+- **Persistent Tape Defects** move through the frame on a virtual longitudinal
+  tape coordinate, so damaged helical tracks keep their shape across fields.
+
 ## Repository layout
 
 - [`Lost_Signal_VHS/`](Lost_Signal_VHS/) — editable shader-pack source
 - [`Lost_Signal_VHS/shaders/lib/settings.glsl`](Lost_Signal_VHS/shaders/lib/settings.glsl) — direct effect controls
 - [`Lost_Signal_VHS/README.md`](Lost_Signal_VHS/README.md) — technical notes and testing checklist
-- [`Lost_Signal_VHS_v1.6.1_MC26.2_Framebuffer_Fix.zip`](Lost_Signal_VHS_v1.6.1_MC26.2_Framebuffer_Fix.zip) — ready-to-install universal release
+- [`Lost_Signal_VHS_v1.7_Composite_Decode.zip`](Lost_Signal_VHS_v1.7_Composite_Decode.zip) — ready-to-install universal release
 
 ## License
 
