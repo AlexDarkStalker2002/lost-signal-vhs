@@ -6,7 +6,7 @@ profile.Liminal_Night=Liminal Night
 profile.Subtle=Subtle
 profile.Found_Footage=Found Footage
 profile.Damaged_Tape=Damaged Tape
-profile.comment=Eleven looks from clean VHS and liminal spaces to Rental Tape, Camcorder 1996, and the severe Broken Signal transport failure.
+profile.comment=Twelve looks from clean VHS and liminal spaces to Composite Decode, Rental Tape, Camcorder 1996, and the severe Broken Signal transport failure.
 
 screen.FORMAT=Real VHS Capture
 screen.TAPE=Tape Damage
@@ -14,6 +14,7 @@ screen.CAMERA=Camera Defects
 screen.SIGNAL=Signal Instability
 screen.LIMINAL=Liminal Lighting
 screen.COLOR=Color & Framing
+screen.DECODER=Composite Decoder
 
 option.QUALITY_LEVEL=Render Quality
 option.QUALITY_LEVEL.comment=Performance removes optional texture taps, Balanced keeps the intended look, and Cinematic reserves the full filter for high-end GPUs.
@@ -61,6 +62,18 @@ option.CHROMA_PERSISTENCE.comment=Allows recorded color to linger longer than lu
 option.CHROMA_PERSISTENCE_STRENGTH=Chroma Trail Strength
 option.CHROMA_PERSISTENCE_STRENGTH.comment=Controls how much previous-frame color remains during movement.
 
+option.COMPOSITE_DECODER=Decoder Circuit
+option.COMPOSITE_DECODER.comment=Bypasses composite artifacts, uses a cheap consumer notch filter, or uses a cleaner two-line comb filter.
+value.COMPOSITE_DECODER.0=Bypass
+value.COMPOSITE_DECODER.1=Consumer Notch
+value.COMPOSITE_DECODER.2=Two-Line Comb
+option.DOT_CRAWL_STRENGTH=Dot Crawl
+option.DOT_CRAWL_STRENGTH.comment=Adds moving subcarrier dots along sharp color and luminance edges.
+option.CROSS_COLOR_STRENGTH=Cross-Color Rainbows
+option.CROSS_COLOR_STRENGTH.comment=Turns fine luminance texture into false rainbow color like an imperfect composite decoder.
+option.CROSS_LUMA_STRENGTH=Cross-Luma Leakage
+option.CROSS_LUMA_STRENGTH.comment=Leaks the chroma carrier into brightness as hanging dots and edge texture.
+
 option.CHROMA_AMOUNT=RGB Separation
 option.CHROMA_AMOUNT.comment=Offsets red and blue in opposite horizontal directions.
 option.LENS_DISTORTION=Lens Distortion
@@ -77,6 +90,10 @@ option.GHOST_STRENGTH=Temporal Ghosting
 option.GHOST_STRENGTH.comment=Retains part of the previous processed frame so movement leaves trails.
 option.HISTORY_STABILIZATION=History Stabilization
 option.HISTORY_STABILIZATION.comment=Rejects implausible previous-frame colors during fast camera turns while preserving smaller tape trails.
+option.MOTION_AWARE_HISTORY=Motion-Aware History
+option.MOTION_AWARE_HISTORY.comment=Reprojects stable world geometry into the previous camera frame while retaining analog motion lag.
+option.REPROJECTION_STRENGTH=Reprojection Strength
+option.REPROJECTION_STRENGTH.comment=Controls how strongly temporal trails follow world geometry instead of staying at the same screen coordinate.
 option.SPATIAL_ECHO=Spatial Tape Echo
 option.SPATIAL_ECHO.comment=Adds a separate one-frame horizontal echo without increasing temporal persistence.
 option.SPATIAL_ECHO_STRENGTH=Spatial Echo Strength
@@ -143,6 +160,7 @@ option.LUMA_RINGING.comment=Adds bright and dark horizontal edge echoes from a c
 profile.Rental_Tape=Rental Tape
 profile.Camcorder_1996=Camcorder 1996
 profile.Broken_Signal=Broken Signal
+profile.Composite_Decode=Composite Decode
 
 screen.GENERATION=Tape Generation
 screen.CAMCORDER=Camcorder
@@ -165,6 +183,12 @@ value.GENERATION_LOSS.4=4th Copy
 value.GENERATION_LOSS.5=5th Copy
 option.TAPE_WEAR=Tape Wear
 option.TAPE_WEAR.comment=Adds oxide fading, desaturated line wear, and low-level generation noise.
+option.TAPE_DEFECT_MEMORY=Persistent Tape Defects
+option.TAPE_DEFECT_MEMORY.comment=Anchors damaged helical tracks to a continuously moving virtual tape instead of regenerating them each frame.
+option.DEFECT_DENSITY=Defect Density
+option.DEFECT_DENSITY.comment=Controls how often persistent oxide holes and damaged tracks occur.
+option.DEFECT_STRENGTH=Defect Strength
+option.DEFECT_STRENGTH.comment=Controls RF noise, brightness loss, and chroma loss inside persistent defects.
 
 option.CAMCORDER_ERA=Camera Era
 option.CAMCORDER_ERA.comment=Selects the color response of a neutral source, 1980s tube camera, 1990s VHS camcorder, or early digital camcorder.
