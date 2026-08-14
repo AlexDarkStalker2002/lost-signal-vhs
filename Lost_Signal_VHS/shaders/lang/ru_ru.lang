@@ -6,13 +6,14 @@ profile.Liminal_Night=Лиминальная ночь
 profile.Subtle=Деликатный
 profile.Found_Footage=Найденная запись
 profile.Damaged_Tape=Повреждённая кассета
-profile.comment=Двенадцать образов: от чистой VHS и лиминальных пространств до «Композитного декодера», «Прокатной кассеты», «Камкордера 1996» и тяжёлого сбоя «Сломанный сигнал».
+profile.comment=Тринадцать образов: от чистой VHS и глубинного тумана до «Композитного декодера», «Прокатной кассеты», «Камкордера 1996» и тяжёлого сбоя «Сломанный сигнал».
 
 screen.FORMAT=Формат VHS
 screen.TAPE=Повреждения ленты
 screen.CAMERA=Дефекты камеры
 screen.SIGNAL=Нестабильность сигнала
 screen.LIMINAL=Лиминальное освещение
+screen.ATMOSPHERE=Атмосферный туман
 screen.COLOR=Цвет и кадрирование
 
 option.QUALITY_LEVEL=Качество рендера
@@ -98,6 +99,24 @@ option.EXPOSURE_HUNT_STRENGTH=Поиск экспозиции
 option.EXPOSURE_HUNT_STRENGTH.comment=Добавляет медленное дыхание усиления, особенно заметное в пустых тёмных пространствах.
 option.LIMINAL_HAZE=Лиминальная дымка
 option.LIMINAL_HAZE.comment=Добавляет воздушную засветку вокруг искусственного света без имитации мирового тумана.
+
+option.FOG_MODE=Палитра тумана
+option.FOG_MODE.comment=Включает туман по глубине сцены и выбирает нейтральный цвет, Закулисье, Бассейновые комнаты или Лиминальную ночь.
+value.FOG_MODE.0=Выключен
+value.FOG_MODE.1=Нейтральный кассетный
+value.FOG_MODE.2=Жёлтый Закулисья
+value.FOG_MODE.3=Голубой Бассейновых комнат
+value.FOG_MODE.4=Зелёный Лиминальной ночи
+option.FOG_DENSITY=Плотность тумана
+option.FOG_DENSITY.comment=Определяет, насколько сильно расстояние скрывает записанную сцену.
+option.FOG_START=Начало тумана
+option.FOG_START.comment=Чистое расстояние от камеры до начала глубинного тумана.
+option.FOG_DISTANCE=Дальность сгущения
+option.FOG_DISTANCE.comment=Расстояние, за которое туман приближается к полной плотности.
+option.FOG_NOISE=Неоднородность тумана
+option.FOG_NOISE.comment=Добавляет медленные привязанные к миру изменения плотности без плавания по экрану.
+suffix.FOG_START= блоков
+suffix.FOG_DISTANCE= блоков
 
 option.WASHOUT_STRENGTH=Выцветание
 option.WASHOUT_STRENGTH.comment=Уменьшает насыщенность и контраст, поднимает чёрный и смягчает светлые области.
@@ -195,6 +214,7 @@ option.FRAME_REPEAT_STRENGTH=Сила повтора
 option.FRAME_REPEAT_STRENGTH.comment=Определяет, насколько предыдущий кадр замещает текущий во время заедания.
 
 profile.Composite_Decode=Композитный декодер
+profile.Analog_Fog=Аналоговый туман
 screen.DECODER=Композитный декодер
 
 option.COMPOSITE_DECODER=Схема декодера

@@ -71,6 +71,70 @@ vec2 virtualPixels(vec2 uv, vec2 resolution) {
     return (floor(uv * virtualResolution) + 0.5) / virtualResolution;
 }
 
+// Fog palettes approximate air recorded by consumer cameras rather than a
+// physically perfect participating medium. The fog is inserted before YIQ
+// encoding so its color is degraded by the same tape and decoder path.
+vec3 analogFogColor() {
+#if FOG_MODE == 2
+    return vec3(0.61, 0.58, 0.36);
+#elif FOG_MODE == 3
+    return vec3(0.37, 0.62, 0.66);
+#elif FOG_MODE == 4
+    return vec3(0.20, 0.31, 0.27);
+#else
+    return vec3(0.53, 0.55, 0.52);
+#endif
+}
+
+// Reconstruct view distance from the depth buffer. Special geometry whose
+// depth disagrees with depthtex2 (the hand and many translucent surfaces) is
+// left clear to avoid fogging the first-person overlay on older Iris versions.
+float analogFogAmount(vec2 screenUv, float time) {
+#if FOG_MODE == 0
+    return 0.0;
+#else
+    float depth = texture2D(depthtex0, screenUv).r;
+    if (depth >= 0.99998) {
+        float horizon = 1.0 - smoothstep(0.48, 0.90, screenUv.y);
+        return clamp(FOG_DENSITY * mix(0.24, 0.62, horizon), 0.0, 0.55);
+    }
+
+    float stableDepth = texture2D(depthtex2, screenUv).r;
+    if (abs(depth - stableDepth) > 0.0005) {
+        return 0.0;
+    }
+
+    vec4 clipPosition = vec4(screenUv * 2.0 - 1.0,
+                             depth * 2.0 - 1.0,
+                             1.0);
+    vec4 viewPosition = gbufferProjectionInverse * clipPosition;
+    if (abs(viewPosition.w) <= 0.00001) {
+        return 0.0;
+    }
+    viewPosition /= viewPosition.w;
+
+    float viewDistance = length(viewPosition.xyz);
+    float fogTravel = max(viewDistance - FOG_START, 0.0)
+                    / max(FOG_DISTANCE, 1.0);
+    float extinction = 1.0 - exp(-fogTravel * FOG_DENSITY * 4.0);
+
+    vec3 worldPosition = (gbufferModelViewInverse * viewPosition).xyz
+                       + cameraPosition;
+    float broadNoise = smoothNoise21(worldPosition.xz * 0.035
+                                   + vec2(time * 0.020, -time * 0.014));
+    float verticalNoise = smoothNoise21(vec2(worldPosition.y * 0.065,
+                                             dot(worldPosition.xz,
+                                                 vec2(0.019, 0.027))
+                                           + time * 0.011));
+    float densityVariation = mix(1.0,
+                                 mix(0.62, 1.38,
+                                     broadNoise * 0.68
+                                   + verticalNoise * 0.32),
+                                 FOG_NOISE);
+    return clamp(extinction * densityVariation, 0.0, 0.94);
+#endif
+}
+
 // Move a current screen pixel into the previous camera frame. Sky pixels and
 // invalid/off-screen projections fall back to ordinary screen-space history,
 // which keeps the pack safe on dimensions and Iris versions where depth is 1.
@@ -284,6 +348,18 @@ void main() {
                                clampUV(uv - smearOffset * 2.0, pixel)).rgb;
     vec3 smearFront = texture2D(colortex0,
                                 clampUV(uv + smearOffset, pixel)).rgb;
+#endif
+
+    // Atmospheric depth belongs to the recorded scene, so apply it before the
+    // first tape generation instead of placing clean digital haze on top.
+#if FOG_MODE > 0
+    float fogAmount = analogFogAmount(uv, time);
+    vec3 fogColor = analogFogColor();
+    centerSample = mix(centerSample, fogColor, fogAmount);
+    positiveSample = mix(positiveSample, fogColor, fogAmount);
+    negativeSample = mix(negativeSample, fogColor, fogAmount);
+    smearBack = mix(smearBack, fogColor, fogAmount);
+    smearFront = mix(smearFront, fogColor, fogAmount);
 #endif
 
     vec3 color;
