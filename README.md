@@ -9,9 +9,9 @@
 Lightweight analog-horror post-processing for Minecraft Java Edition.<br>
 Scanlines, tape grain, tracking tears, color bleed, temporal ghosting, lens
 distortion, sync failures, a proper signal-space YIQ pipeline, and dedicated
-Backrooms, Poolrooms, and Liminal Night lighting. Version 1.7 adds camera-aware
-temporal reprojection, a real composite-decoder artifact model, persistent tape
-defects, and the dedicated Minecraft 26.2 / Iris 1.11.2 framebuffer fix.
+Backrooms, Poolrooms, and Liminal Night lighting. Version 1.8 adds depth-based
+analog fog that enters the signal before tape encoding, a dedicated fog preset,
+and an extended Minecraft 1.18.2–26.2 compatibility target.
 
 <p>
   <a href="https://modrinth.com/shader/lost-signal-vhs">
@@ -22,8 +22,8 @@ defects, and the dedicated Minecraft 26.2 / Iris 1.11.2 framebuffer fix.
   </a>
 </p>
 
-![Minecraft 1.20.1–26.2](https://img.shields.io/badge/Minecraft-1.20.1%E2%80%9326.2-62B47A?style=flat-square)
-![Iris](https://img.shields.io/badge/Iris-1.7.6%2B-5C6BC0?style=flat-square)
+![Minecraft 1.18.2–26.2](https://img.shields.io/badge/Minecraft-1.18.2%E2%80%9326.2-62B47A?style=flat-square)
+![Iris](https://img.shields.io/badge/Iris-1.6.11%2B-5C6BC0?style=flat-square)
 ![OptiFine compatible](https://img.shields.io/badge/OptiFine-Compatible-EF6C00?style=flat-square)
 ![MIT License](https://img.shields.io/badge/License-MIT-E7B416?style=flat-square)
 
@@ -44,12 +44,13 @@ placing a noise texture over the screen.
 - Consumer notch and two-line comb decoder models
 - Dot crawl, cross-color rainbows, and cross-luma carrier leakage
 - Persistent oxide defects tied to a continuously moving virtual tape
+- Depth-based fog recorded before YIQ/tape degradation, with world-stable variation
 - True NTSC/PAL field weaving through the persistent history buffer
 - Smooth mechanically correlated time-base error and feathered tracking tears
 - Performance, Balanced, and Cinematic render-quality modes
 - Selectable NTSC and PAL signal timing
 - Delayed automatic exposure, sync failures, and tracking color loss
-- Twelve presets plus individual controls for every major effect
+- Thirteen presets plus individual controls for every major effect
 - Overworld, Nether, and End support without dimension-specific shaders
 - English and Russian settings menus
 
@@ -89,9 +90,21 @@ the scene playable.
 | Java Edition 26.2 | Iris 1.11.2 with Sodium | OpenGL | Supported |
 | Java Edition 26.1.2 | Iris 1.11.2 with Sodium | OpenGL | Supported |
 | Java Edition 1.21.11 | Iris 1.10.7 with Sodium | OpenGL | Supported |
+| Java Edition 1.21.10 | Iris 1.9.7 with Sodium | OpenGL | Extended |
+| Java Edition 1.21.8 | Iris 1.9.5 with Sodium | OpenGL | Extended |
+| Java Edition 1.21.5 | Iris 1.8.11 with Sodium | OpenGL | Extended |
 | Java Edition 1.21.4 | Iris 1.8.8 with Sodium | OpenGL | Supported |
 | Java Edition 1.21.1 | Iris 1.8.12 with Sodium | OpenGL | Supported |
+| Java Edition 1.20.6 | Iris 1.7.0 with Sodium | OpenGL | Extended |
+| Java Edition 1.20.4 | Iris 1.7.2 with Sodium | OpenGL | Extended |
 | Java Edition 1.20.1 | Iris 1.7.6 with Sodium | OpenGL | Supported |
+| Java Edition 1.19.4 | Iris 1.6.11 with Sodium | OpenGL | Extended |
+| Java Edition 1.18.2 | Iris 1.6.11 with Sodium | OpenGL | Extended |
+
+**Supported** rows are the established primary targets. **Extended** rows use
+the same GLSL 1.20, depth-buffer, and composite interfaces and are included in
+the v1.8 compatibility target; live verification on every loader/driver pair is
+still recommended.
 
 > [!IMPORTANT]
 > Version 1.6.1 or newer is required on Minecraft 26.2. Iris is not compatible
@@ -101,7 +114,7 @@ the scene playable.
 
 ## Quick installation
 
-1. Download [`Lost_Signal_VHS_v1.7_Composite_Decode.zip`](Lost_Signal_VHS_v1.7_Composite_Decode.zip).
+1. Download [`Lost_Signal_VHS_v1.8_Analog_Fog.zip`](Lost_Signal_VHS_v1.8_Analog_Fog.zip).
 2. Put the ZIP into Minecraft's `shaderpacks` directory.
 3. Start Minecraft with Iris.
 4. Open **Options → Video Settings → Shader Packs**.
@@ -121,9 +134,9 @@ No resource pack, external texture, or compute-shader support is required.
 |---|---|
 | **Reference VHS** | Saturated green chroma, ringing, halation, and crushed shadows |
 | **Real VHS** | Heavy consumer-tape look with temporal trails and head-switch noise |
-| **Backrooms** | Yellow-green fluorescent hum, white-balance drift, and exposure hunting |
-| **Poolrooms** | Cyan reflected light, humid veiling glare, and restrained tape damage |
-| **Liminal Night** | Underexposed blue-green corridors with unstable dying lights |
+| **Backrooms** | Yellow-green fluorescent hum, depth fog, white-balance drift, and exposure hunting |
+| **Poolrooms** | Cyan reflected light, humid depth fog, and restrained tape damage |
+| **Liminal Night** | Underexposed blue-green corridors with dense unstable air |
 | **Subtle** | Restrained camcorder treatment |
 | **Found Footage** | Analog-horror balance without the VCR overlay |
 | **Damaged Tape** | Aggressive tears, static, separation, and ghosting |
@@ -131,6 +144,7 @@ No resource pack, external texture, or compute-shader support is required.
 | **Camcorder 1996** | VHS-C color response with REC, battery, timecode, zoom, and autofocus hunting |
 | **Broken Signal** | Severe mistracking, RF herringbone, chewed tape, and repeated frames |
 | **Composite Decode** | Consumer composite leakage, crawling edge dots, false color, and persistent oxide defects |
+| **Analog Fog** | Neutral depth fog recorded through the complete composite/VHS pipeline |
 
 Every preset is only a starting point. Open **Shader Pack Settings** to tune
 the tape, camera, signal, format, and color groups independently.
@@ -147,6 +161,19 @@ the tape, camera, signal, format, and color groups independently.
   pretending to add world-space fog.
 - **Liminal Color Space** can be set to Off, Backrooms, Poolrooms, or Liminal
   Night independently of the preset.
+
+## Atmospheric fog
+
+- **Fog Palette** selects neutral tape fog, Backrooms yellow, Poolrooms cyan,
+  Liminal Night green, or disables the effect.
+- **Fog Density**, **Start Distance**, and **Falloff Distance** control the
+  depth response in world blocks.
+- **Fog Variation** adds slow world-anchored density changes without a texture
+  or a screen-space pattern that swims when the camera turns.
+- Fog is inserted before YIQ encoding, composite-decoder leakage, temporal
+  history, and tape wear, so it inherits color bleed and genuine VHS ghosting.
+- The first-person hand and depth-disagreeing translucent geometry use a clear
+  compatibility fallback instead of receiving unstable foreground fog.
 
 ## Tape generation, camcorder, and broken signal
 
@@ -173,7 +200,18 @@ the tape, camera, signal, format, and color groups independently.
 - **Interlaced Field Weave** refreshes one raster-line parity per field and
   retains the other parity from history, creating real motion combing.
 
-## Version 1.7 signal model
+## Version 1.8 — Analog Fog
+
+- Added true scene-depth fog with five selectable palettes and adjustable
+  density, start distance, falloff distance, and world-stable variation.
+- Integrated fog before the first tape generation instead of adding a clean
+  digital overlay after VHS processing.
+- Updated Backrooms, Poolrooms, and Liminal Night and added the **Analog Fog**
+  preset.
+- Extended the compatibility target to Minecraft 1.18.2, 1.19.4, 1.20.4,
+  1.20.6, 1.21.5, 1.21.8, and 1.21.10 alongside the existing primary versions.
+
+## Version 1.7 — Composite Decode
 
 - **Motion-Aware History** reconstructs the current world position from depth,
   projects it through the previous camera, and falls back to screen-space
@@ -191,7 +229,7 @@ the tape, camera, signal, format, and color groups independently.
 - [`Lost_Signal_VHS/`](Lost_Signal_VHS/) — editable shader-pack source
 - [`Lost_Signal_VHS/shaders/lib/settings.glsl`](Lost_Signal_VHS/shaders/lib/settings.glsl) — direct effect controls
 - [`Lost_Signal_VHS/README.md`](Lost_Signal_VHS/README.md) — technical notes and testing checklist
-- [`Lost_Signal_VHS_v1.7_Composite_Decode.zip`](Lost_Signal_VHS_v1.7_Composite_Decode.zip) — ready-to-install universal release
+- [`Lost_Signal_VHS_v1.8_Analog_Fog.zip`](Lost_Signal_VHS_v1.8_Analog_Fog.zip) — ready-to-install universal release
 
 ## License
 

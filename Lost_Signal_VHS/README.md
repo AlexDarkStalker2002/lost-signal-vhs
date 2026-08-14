@@ -3,10 +3,10 @@
 An Iris shader pack for Minecraft Java Edition that turns the vanilla scene into
 cheap, unstable found footage: scanlines, tape grain, tracking tears, color
 bleeding, camcorder lens distortion, flicker, temporal ghosting, frame jitter,
-and a yellow-green security-camera grade. Version 1.7 adds camera-aware temporal
-reprojection, consumer composite-decoder artifacts, and persistent physical
-tape defects while preserving the Minecraft 26.2 framebuffer fix, Liminal
-Signal lighting, tape generations, camcorders, and broken-signal transport.
+and a yellow-green security-camera grade. Version 1.8 adds depth-based analog
+fog before tape encoding, world-stable density variation, a dedicated fog
+preset, and an extended Minecraft 1.18.2–26.2 compatibility target while
+preserving the composite decoder and Minecraft 26.2 framebuffer fix.
 Its optional signal-accurate YIQ path
 processes brightness and analog color independently instead of applying a
 generic RGB blur.
@@ -21,9 +21,16 @@ shader files.
 
 - Minecraft Java Edition 26.2 or 26.1.2 with Iris 1.11.2 and Sodium
 - Minecraft Java Edition 1.21.11 with Iris 1.10.7 and Sodium
+- Minecraft Java Edition 1.21.10 with Iris 1.9.7 and Sodium
+- Minecraft Java Edition 1.21.8 with Iris 1.9.5 and Sodium
+- Minecraft Java Edition 1.21.5 with Iris 1.8.11 and Sodium
 - Minecraft Java Edition 1.21.4 with Iris 1.8.8 and Sodium
 - Minecraft Java Edition 1.21.1 with Iris 1.8.12 and Sodium
+- Minecraft Java Edition 1.20.6 with Iris 1.7.0 and Sodium
+- Minecraft Java Edition 1.20.4 with Iris 1.7.2 and Sodium
 - Minecraft Java Edition 1.20.1 with Iris 1.7.6 and Sodium
+- Minecraft Java Edition 1.19.4 with Iris 1.6.11 and Sodium
+- Minecraft Java Edition 1.18.2 with Iris 1.6.11 and Sodium
 - The OpenGL graphics backend
 
 No resource pack, noise texture, or compute-shader support is required.
@@ -79,24 +86,27 @@ Do not place the pack in `resourcepacks`; this is an Iris shader pack.
     original screen coordinate. Sky pixels should remain stable.
 11. Raise **Defect Density** temporarily and watch one damaged track cross
     several fields without changing its horizontal shape every rendered frame.
+12. Select **Analog Fog**, look down a long corridor, and compare nearby blocks
+    with distant geometry. The hand should remain clear while distant air gains
+    tape color bleed and stable slow density variation.
 
 For shader compile diagnostics, open the Iris shader selection screen and press
 `Ctrl+D` on Windows/Linux or `Cmd+D` on macOS to toggle Iris debug mode.
 
 ## Tuning
 
-The settings menu provides twelve presets:
+The settings menu provides thirteen presets:
 
 - **Reference VHS**: matches the supplied real-tape screenshots: saturated green
   chroma, edge ringing, crushed shadows, bright halation, and no text overlay.
 - **Real VHS**: the default heavy 4:3 deck look with color bleed, crushed blacks,
   temporal trails, and head-switch noise.
 - **Backrooms**: yellow-green 4:3 analog-horror footage with rolling
-  fluorescent hum, drifting white balance, exposure hunting, and no OSD.
-- **Poolrooms**: cyan reflected light, humid veiling glare, restrained tape
-  damage, and clean aquatic highlights.
-- **Liminal Night**: underexposed blue-green corridors with unstable dying
-  lights, stronger gain hunting, and deep vignette.
+  fluorescent hum, depth fog, drifting white balance, and no OSD.
+- **Poolrooms**: cyan reflected light, humid depth fog, restrained tape damage,
+  and clean aquatic highlights.
+- **Liminal Night**: underexposed blue-green corridors with dense unstable air,
+  stronger gain hunting, and deep vignette.
 - **Subtle**: a restrained consumer-camcorder look.
 - **Found Footage**: the analog-horror balance without the deck OSD.
 - **Damaged Tape**: stronger tears, static, color separation, and ghosting.
@@ -108,6 +118,8 @@ The settings menu provides twelve presets:
   genuine previous-frame repetition.
 - **Composite Decode**: consumer notch-filter leakage, crawling edge dots,
   false rainbow color, motion-aware trails, and persistent oxide defects.
+- **Analog Fog**: neutral scene-depth fog recorded through the complete
+  composite decoder, temporal history, and worn-tape pipeline.
 
 The VCR OSD is disabled by default but remains available as an option. **Rounded
 Overscan** now controls only the curved black mask; disabling it keeps lens
@@ -126,6 +138,20 @@ space-specific looks:
 - **Exposure Hunting** adds slow gain breathing in empty bright and dark rooms.
 - **Liminal Haze** adds veiling glare around artificial highlights without
   pretending to inject world-space fog.
+
+The **Atmospheric Fog** page adds actual scene-depth atmosphere independently
+of the highlight haze:
+
+- **Fog Palette** selects Off, Neutral Tape Fog, Backrooms Yellow, Poolrooms
+  Cyan, or Liminal Night Green.
+- **Fog Density**, **Fog Start Distance**, and **Fog Falloff Distance** control
+  the extinction curve in world blocks.
+- **Fog Variation** adds slow world-anchored density changes that do not swim
+  with the screen when the camera turns.
+- The fog is applied before YIQ conversion and the first tape generation, so
+  composite leakage, chroma loss, interlacing, and ghosting affect it naturally.
+- Depth-disagreeing foreground geometry uses a clear fallback for compatibility
+  with first-person hands, translucent surfaces, and older Iris releases.
 
 The **Signal Instability** page contains independent temporal and transport
 effects. Each
@@ -187,7 +213,7 @@ so scanlines, grain, RGB separation, and virtual pixels remain visible on macOS.
 
 ## Pass layout
 
-- `composite`: applies the first tape encode, camera drift, optional YIQ
+- `composite`: applies depth fog, the first tape encode, camera drift, optional YIQ
   bandwidth loss and phase error, composite-decoder leakage, tracking damage,
   automatic gain pumping, sync failure, chroma loss, and depth-reprojected
   luma/chroma temporal persistence.
@@ -198,11 +224,23 @@ so scanlines, grain, RGB separation, and virtual pixels remain visible on macOS.
   dropouts, RF static, head-switch tearing, liminal lighting, alternating scan
   fields, grain, and the optional VCR OSD.
 
-This is intentionally the original multi-pass look. Version 1.7 uses the stable
+This is intentionally the original multi-pass look. Version 1.8 uses the stable
 GLSL 1.20 and composite-buffer interfaces shared by supported Iris releases from
-Minecraft 1.20.1 through 26.2. It uses one persistent RGBA history buffer plus a
+Minecraft 1.18.2 through 26.2. It uses one persistent RGBA history buffer plus a
 second playback-generation pass. The actual game and output resolution are
 never reduced.
+
+## Version 1.8 — Analog Fog
+
+- Added scene-depth atmospheric fog before the first tape encode.
+- Added neutral, Backrooms, Poolrooms, and Liminal Night fog palettes plus
+  density, start-distance, falloff-distance, and world-stable variation controls.
+- Protected first-person and depth-disagreeing translucent geometry with a
+  conservative clear fallback.
+- Added the **Analog Fog** preset and tuned depth fog into the three liminal
+  presets.
+- Extended the compatibility target with Minecraft 1.18.2, 1.19.4, 1.20.4,
+  1.20.6, 1.21.5, 1.21.8, and 1.21.10.
 
 ## Version 1.7 — Composite Decode
 

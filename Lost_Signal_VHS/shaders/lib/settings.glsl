@@ -84,6 +84,15 @@
 #define EXPOSURE_HUNT_STRENGTH 0.00 // [0.00 0.10 0.20 0.35 0.50 0.70 1.00] Slow gain breathing in empty bright and dark spaces.
 #define LIMINAL_HAZE 0.00 // [0.00 0.10 0.20 0.35 0.50 0.70 1.00] Veiling glare and lifted air around artificial lights.
 
+// Camera-space atmospheric fog. Unlike LIMINAL_HAZE, this uses scene depth and
+// is applied before the signal enters the virtual tape deck, so distant air
+// receives the same chroma loss, ghosting, and composite artifacts as geometry.
+#define FOG_MODE 0 // [0 1 2 3 4] Off, neutral gray, Backrooms yellow, Poolrooms cyan, or Liminal Night green.
+#define FOG_DENSITY 0.25 // [0.00 0.10 0.18 0.25 0.35 0.50 0.70 1.00] Optical density of the depth-based fog.
+#define FOG_START 12.0 // [0.0 4.0 8.0 12.0 16.0 24.0 32.0 48.0 64.0] Clear distance from the camera, in blocks.
+#define FOG_DISTANCE 96.0 // [24.0 32.0 48.0 64.0 80.0 96.0 128.0 192.0 256.0] Distance over which fog approaches full density, in blocks.
+#define FOG_NOISE 0.25 // [0.00 0.10 0.20 0.25 0.35 0.50 0.70 1.00] Slow world-anchored variation in fog density.
+
 // Broken-signal controls
 #define TRACKING_CONTROL 0.0 // [-1.0 -0.7 -0.4 0.0 0.4 0.7 1.0] Manual tracking bias and rolling-band position.
 #define RF_INTERFERENCE_STRENGTH 0.00 // [0.00 0.10 0.20 0.35 0.50 0.70 1.00] Radio-frequency herringbone noise and bright interference bands.

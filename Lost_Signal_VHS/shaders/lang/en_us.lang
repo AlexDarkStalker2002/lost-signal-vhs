@@ -6,13 +6,14 @@ profile.Liminal_Night=Liminal Night
 profile.Subtle=Subtle
 profile.Found_Footage=Found Footage
 profile.Damaged_Tape=Damaged Tape
-profile.comment=Twelve looks from clean VHS and liminal spaces to Composite Decode, Rental Tape, Camcorder 1996, and the severe Broken Signal transport failure.
+profile.comment=Thirteen looks from clean VHS and depth fog to Composite Decode, Rental Tape, Camcorder 1996, and the severe Broken Signal transport failure.
 
 screen.FORMAT=Real VHS Capture
 screen.TAPE=Tape Damage
 screen.CAMERA=Camera Defects
 screen.SIGNAL=Signal Instability
 screen.LIMINAL=Liminal Lighting
+screen.ATMOSPHERE=Atmospheric Fog
 screen.COLOR=Color & Framing
 screen.DECODER=Composite Decoder
 
@@ -116,6 +117,24 @@ option.EXPOSURE_HUNT_STRENGTH.comment=Adds slow gain breathing that becomes more
 option.LIMINAL_HAZE=Liminal Haze
 option.LIMINAL_HAZE.comment=Adds veiling glare and lifted air around artificial highlights without world-space fog.
 
+option.FOG_MODE=Fog Palette
+option.FOG_MODE.comment=Enables scene-depth fog and selects neutral, Backrooms, Poolrooms, or Liminal Night air color.
+value.FOG_MODE.0=Off
+value.FOG_MODE.1=Neutral Tape Fog
+value.FOG_MODE.2=Backrooms Yellow
+value.FOG_MODE.3=Poolrooms Cyan
+value.FOG_MODE.4=Liminal Night Green
+option.FOG_DENSITY=Fog Density
+option.FOG_DENSITY.comment=Controls how strongly distance obscures the recorded scene.
+option.FOG_START=Fog Start Distance
+option.FOG_START.comment=Clear distance from the camera before depth fog begins.
+option.FOG_DISTANCE=Fog Falloff Distance
+option.FOG_DISTANCE.comment=Distance over which the fog approaches full density.
+option.FOG_NOISE=Fog Variation
+option.FOG_NOISE.comment=Adds slow world-anchored density variation without screen-space swimming.
+suffix.FOG_START= blocks
+suffix.FOG_DISTANCE= blocks
+
 option.WASHOUT_STRENGTH=Color Washout
 option.WASHOUT_STRENGTH.comment=Reduces saturation and contrast, lifts black, and softens highlights.
 option.TINT_STRENGTH=Security Tint
@@ -161,6 +180,7 @@ profile.Rental_Tape=Rental Tape
 profile.Camcorder_1996=Camcorder 1996
 profile.Broken_Signal=Broken Signal
 profile.Composite_Decode=Composite Decode
+profile.Analog_Fog=Analog Fog
 
 screen.GENERATION=Tape Generation
 screen.CAMCORDER=Camcorder
