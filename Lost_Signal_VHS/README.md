@@ -3,35 +3,46 @@
 An Iris shader pack for Minecraft Java Edition that turns the vanilla scene into
 cheap, unstable found footage: scanlines, tape grain, tracking tears, color
 bleeding, camcorder lens distortion, flicker, temporal ghosting, frame jitter,
-and a yellow-green security-camera grade. Version 1.8 adds depth-based analog
-fog before tape encoding, world-stable density variation, a dedicated fog
-preset, and an extended Minecraft 1.18.2–26.2 compatibility target while
-preserving the composite decoder and Minecraft 26.2 framebuffer fix.
+and a yellow-green security-camera grade. Version 1.8.1 contains the depth-based
+analog fog, world-stable density variation, dedicated fog preset, and extended
+Minecraft 1.18.2–26.2 compatibility target from v1.8, plus a critical release
+packaging fix that lets Iris discover the shader pack correctly on Windows.
 Its optional signal-accurate YIQ path
 processes brightness and analog color independently instead of applying a
 generic RGB blur.
 
 The pack keeps Minecraft's normal lighting and applies the VHS treatment after
-the world is rendered. Lightweight geometry fallback programs capture that
-vanilla-lit scene reliably on both current Iris and older supported releases, so
-the pack works in the Overworld, Nether, and End without dimension-specific
-shader files.
+the world is rendered. Lightweight geometry fallback programs preserve the
+vanilla-lit scene across the project's primary Iris targets, so the same pack
+can render the Overworld, Nether, and End without dimension-specific files.
 
-## Requirements
+## Compatibility
+
+**Established primary targets:**
 
 - Minecraft Java Edition 26.2 or 26.1.2 with Iris 1.11.2 and Sodium
 - Minecraft Java Edition 1.21.11 with Iris 1.10.7 and Sodium
+- Minecraft Java Edition 1.21.4 with Iris 1.8.8 and Sodium
+- Minecraft Java Edition 1.21.1 with Iris 1.8.12 and Sodium
+- Minecraft Java Edition 1.20.1 with Iris 1.7.6 and Sodium
+
+**Extended compatibility targets:**
+
 - Minecraft Java Edition 1.21.10 with Iris 1.9.7 and Sodium
 - Minecraft Java Edition 1.21.8 with Iris 1.9.5 and Sodium
 - Minecraft Java Edition 1.21.5 with Iris 1.8.11 and Sodium
-- Minecraft Java Edition 1.21.4 with Iris 1.8.8 and Sodium
-- Minecraft Java Edition 1.21.1 with Iris 1.8.12 and Sodium
 - Minecraft Java Edition 1.20.6 with Iris 1.7.0 and Sodium
 - Minecraft Java Edition 1.20.4 with Iris 1.7.2 and Sodium
-- Minecraft Java Edition 1.20.1 with Iris 1.7.6 and Sodium
 - Minecraft Java Edition 1.19.4 with Iris 1.6.11 and Sodium
 - Minecraft Java Edition 1.18.2 with Iris 1.6.11 and Sodium
-- The OpenGL graphics backend
+
+Extended entries use the same conservative GLSL 1.20, depth-buffer, and
+composite interfaces, but have not all been live-tested across every loader,
+GPU, and driver combination. Include your Minecraft version, Iris version, GPU,
+and driver when reporting an issue.
+
+All targets require the OpenGL graphics backend. The pack follows the standard
+OptiFine shader-pack layout, but v1.8.1 was live-verified on Iris.
 
 No resource pack, noise texture, or compute-shader support is required.
 
