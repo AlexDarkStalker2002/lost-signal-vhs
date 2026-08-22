@@ -9,9 +9,9 @@
 Lightweight analog-horror post-processing for Minecraft Java Edition.<br>
 Scanlines, tape grain, tracking tears, color bleed, temporal ghosting, lens
 distortion, sync failures, a proper signal-space YIQ pipeline, and dedicated
-Backrooms, Poolrooms, and Liminal Night lighting. Version 1.8 adds depth-based
-analog fog that enters the signal before tape encoding, a dedicated fog preset,
-and an extended Minecraft 1.18.2–26.2 compatibility target.
+Backrooms, Poolrooms, and Liminal Night lighting. Version 1.8.1 includes the
+depth-based analog fog introduced in v1.8 and replaces its invalid Windows-built
+archive with standard portable ZIP paths that Iris can discover correctly.
 
 <p>
   <a href="https://modrinth.com/shader/lost-signal-vhs">
@@ -114,7 +114,7 @@ still recommended.
 
 ## Quick installation
 
-1. Download [`Lost_Signal_VHS_v1.8_Analog_Fog.zip`](Lost_Signal_VHS_v1.8_Analog_Fog.zip).
+1. Download [`Lost_Signal_VHS_v1.8.1_Packaging_Hotfix.zip`](Lost_Signal_VHS_v1.8.1_Packaging_Hotfix.zip).
 2. Put the ZIP into Minecraft's `shaderpacks` directory.
 3. Start Minecraft with Iris.
 4. Open **Options → Video Settings → Shader Packs**.
@@ -200,6 +200,15 @@ the tape, camera, signal, format, and color groups independently.
 - **Interlaced Field Weave** refreshes one raster-line parity per field and
   retains the other parity from history, creating real motion combing.
 
+## Version 1.8.1 — Critical Packaging Hotfix
+
+- Rebuilt the release with standard ZIP paths such as `shaders/composite.fsh`.
+- Fixed Iris reporting v1.8 as invalid on Windows because the previous archive
+  stored shader entries with backslashes.
+- Added a release builder that rejects invalid separators, missing shader
+  entry points, unsafe paths, and incomplete archives before publication.
+- Shader code and v1.8 presets are unchanged; this hotfix makes them loadable.
+
 ## Version 1.8 — Analog Fog
 
 - Added true scene-depth fog with five selectable palettes and adjustable
@@ -229,7 +238,8 @@ the tape, camera, signal, format, and color groups independently.
 - [`Lost_Signal_VHS/`](Lost_Signal_VHS/) — editable shader-pack source
 - [`Lost_Signal_VHS/shaders/lib/settings.glsl`](Lost_Signal_VHS/shaders/lib/settings.glsl) — direct effect controls
 - [`Lost_Signal_VHS/README.md`](Lost_Signal_VHS/README.md) — technical notes and testing checklist
-- [`Lost_Signal_VHS_v1.8_Analog_Fog.zip`](Lost_Signal_VHS_v1.8_Analog_Fog.zip) — ready-to-install universal release
+- [`Lost_Signal_VHS_v1.8.1_Packaging_Hotfix.zip`](Lost_Signal_VHS_v1.8.1_Packaging_Hotfix.zip) — current fixed release
+- The v1.7 and v1.8 ZIPs are retained only for release provenance. Their Windows-style internal paths make them invalid in Iris; do not install them.
 
 ## License
 
