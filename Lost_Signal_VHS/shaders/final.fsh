@@ -1,8 +1,8 @@
 #version 120
 
-// Full analog playback/display pass. composite supplies the first tape encode,
-// temporal history, and camera instability; this pass adds the deliberately
-// heavy second-generation VCR/CRT character that defines the original look.
+// Full analog playback/display pass. composite records tape bandwidth and
+// temporal persistence; this pass applies playback transport, the single
+// composite decoder, camera response, and CRT/capture presentation.
 uniform sampler2D colortex0;
 uniform float viewWidth;
 uniform float viewHeight;
@@ -430,13 +430,33 @@ void main() {
     lensMask = sourceInside.x * sourceInside.y;
 #endif
 
-    // Bottom head-switching noise bends only the overscan area.
-    float headZone = 1.0 - smoothstep(0.012, 0.065, frameUv.y);
-    float headRandom = hash21(vec2(floor(frameUv.y * 220.0),
-                                   floor(time * 24.0))) - 0.5;
-    float headWave = sin(frameUv.y * 510.0 + time * 37.0) * 0.5 + headRandom;
-    sourceUv.x += headZone * headWave * HEAD_SWITCHING * 0.055;
-    sourceUv.y += headZone * headRandom * HEAD_SWITCHING * 0.010;
+    // A helical-scan head switch is locked to the analog field clock. Its center
+    // and width change only between fields, while every affected line shares a
+    // correlated phase jump. The same mask later drives chroma loss and RF noise.
+    float headField = floor(time * VHS_FIELD_RATE);
+    float headCenter = mix(0.015, 0.045,
+                           hash21(vec2(headField, 318.7)))
+                     + TRACKING_CONTROL * 0.004;
+    float headWidth = mix(0.008, 0.025,
+                          hash21(vec2(headField, 711.3)));
+    float headDistance = abs(frameUv.y - headCenter);
+    float headBand = 1.0 - smoothstep(headWidth,
+                                      headWidth * 2.15,
+                                      headDistance);
+    float headGuard = 1.0 - smoothstep(headWidth * 2.15,
+                                       headWidth * 3.8,
+                                       headDistance);
+    float headLineNoise = smoothNoise21(vec2(
+        signalLinePosition * 0.145 + headField * 0.31,
+        headField * 0.173 + 41.0)) * 2.0 - 1.0;
+    float headPolarity = hash21(vec2(headField, 129.2)) * 2.0 - 1.0;
+    float headJumpPixels = (headLineNoise * 0.68 + headPolarity * 0.52)
+                         * mix(4.0, 28.0, HEAD_SWITCHING);
+    float headZone = max(headBand, headGuard * 0.32);
+    sourceUv.x += headBand * headJumpPixels * HEAD_SWITCHING
+                * displayScale * pixel.x;
+    sourceUv.y += headBand * headLineNoise * HEAD_SWITCHING
+                * displayScale * pixel.y * 3.5;
     sourceUv.x += sin(frameUv.y * 470.0 + time * 2.7)
                 * pixel.x * displayScale * 0.80;
     sourceUv = safeUV(sourceUv, pixel);
@@ -478,8 +498,10 @@ void main() {
 
     // Broad asymmetric chroma taps reproduce the much lower color bandwidth of
     // VHS. The YIQ path keeps brightness sharp while I and Q smear differently.
-    vec2 bleed = vec2((CHROMA_BLEED + CHROMA_AMOUNT * 0.50)
-                      * displayScale * pixel.x, 0.0);
+    // Chroma Amount is now only an I/Q timing split. Chroma Bleed alone controls
+    // the low-bandwidth color filter, so the two menu controls no longer amplify
+    // the same blur behind the user's back.
+    vec2 bleed = vec2(CHROMA_BLEED * displayScale * pixel.x, 0.0);
     float chromaLine = floor(frameUv.y * VHS_CHROMA_LINES);
     float chromaPhase = hash21(vec2(chromaLine, floor(time * 8.0))) - 0.5;
     chromaPhase += sin(frameUv.y * 37.0 + time * 1.3) * 0.18;
@@ -545,9 +567,12 @@ void main() {
 #endif
     tapeChroma = rotateChroma(tapeChroma, phaseAngle);
 
-    // Playback composite decoder. This second, lighter leakage stage represents
-    // the VCR's RF output and the consumer display decoder after the recorded
-    // tape generation has already lost bandwidth in composite.fsh.
+    // Encode Y + I*cos(phase) + Q*sin(phase), then decode that one composite
+    // waveform exactly once. The five-tap [1 2 2 2 1] notch removes the
+    // four-sample carrier from Y; synchronous demodulation recovers I/Q and
+    // naturally leaves edge-dependent cross-color and dot crawl. Cinematic NTSC
+    // comb mode adds five taps from the next scan line. PAL safely retains the
+    // notch path because its alternating V phase is not a simple line inversion.
 #if COMPOSITE_DECODER > 0
     float playbackSignalLine = floor(frameUv.y * VHS_SIGNAL_LINES);
     float playbackCarrierSample = frameUv.x * viewWidth
@@ -564,30 +589,17 @@ void main() {
     float rightLuma = dot(lumaRight1, vec3(0.299, 0.587, 0.114));
     float playbackLumaHigh = centerLuma
                            - (leftLuma + rightLuma) * 0.50;
-    float playbackDecoderLeak = 1.0;
 
-#if COMPOSITE_DECODER == 2
 #if QUALITY_LEVEL == 0
-    playbackDecoderLeak = 0.52;
-#else
-    vec3 adjacentPlaybackYiq = rgbToYiq(texture2D(
-        colortex0,
-        safeUV(chromaUv + vec2(0.0, 1.0 / VHS_SIGNAL_LINES), pixel)).rgb);
-    float playbackLineDifference = abs(chromaCenter.x
-                                     - adjacentPlaybackYiq.x)
-                                 + length(chromaCenter.yz
-                                        - adjacentPlaybackYiq.yz) * 0.35;
-    float playbackLineCorrelation = 1.0
-        - smoothstep(0.018, 0.22, playbackLineDifference);
-    playbackDecoderLeak = mix(0.62, 0.18,
-                              playbackLineCorrelation);
-#endif
-#endif
-
+    // Performance keeps a two-channel approximation and avoids the extra taps.
     float playbackEdge = clamp(abs(playbackLumaHigh) * 8.0, 0.0, 1.0);
     float playbackDots = sin(playbackCarrierPhase
                            + playbackSignalLine * PI * 0.50);
     float playbackChromaCarrier = dot(tapeChroma, playbackCarrier);
+    float playbackDecoderLeak = 1.0;
+#if COMPOSITE_DECODER == 2
+    playbackDecoderLeak = 0.52;
+#endif
     tapeLuma += (playbackChromaCarrier * CROSS_LUMA_STRENGTH * 0.18
                  + playbackDots * playbackEdge
                    * DOT_CRAWL_STRENGTH * 0.020)
@@ -597,6 +609,145 @@ void main() {
                    + playbackDots * playbackEdge
                      * DOT_CRAWL_STRENGTH * 0.010)
                 * playbackDecoderLeak;
+#else
+    vec2 decoderStep = vec2(max(displayScale * PIXEL_SCALE, 1.0)
+                            * pixel.x, 0.0);
+    vec3 decoderM2 = rgbToYiq(texture2D(
+        colortex0, safeUV(chromaUv - decoderStep * 2.0, pixel)).rgb);
+    vec3 decoderM1 = rgbToYiq(texture2D(
+        colortex0, safeUV(chromaUv - decoderStep, pixel)).rgb);
+    vec3 decoderC = chromaCenter;
+    vec3 decoderP1 = rgbToYiq(texture2D(
+        colortex0, safeUV(chromaUv + decoderStep, pixel)).rgb);
+    vec3 decoderP2 = rgbToYiq(texture2D(
+        colortex0, safeUV(chromaUv + decoderStep * 2.0, pixel)).rgb);
+
+    decoderM2.yz = rotateChroma(decoderM2.yz, phaseAngle);
+    decoderM1.yz = rotateChroma(decoderM1.yz, phaseAngle);
+    decoderC.yz = rotateChroma(decoderC.yz, phaseAngle);
+    decoderP1.yz = rotateChroma(decoderP1.yz, phaseAngle);
+    decoderP2.yz = rotateChroma(decoderP2.yz, phaseAngle);
+
+    vec2 carrierM2 = vec2(cos(playbackCarrierPhase - PI),
+                          sin(playbackCarrierPhase - PI));
+    vec2 carrierM1 = vec2(cos(playbackCarrierPhase - PI * 0.50),
+                          sin(playbackCarrierPhase - PI * 0.50));
+    vec2 carrierP1 = vec2(cos(playbackCarrierPhase + PI * 0.50),
+                          sin(playbackCarrierPhase + PI * 0.50));
+    vec2 carrierP2 = vec2(cos(playbackCarrierPhase + PI),
+                          sin(playbackCarrierPhase + PI));
+
+    float signalM2 = decoderM2.x + dot(decoderM2.yz, carrierM2);
+    float signalM1 = decoderM1.x + dot(decoderM1.yz, carrierM1);
+    float signalC = decoderC.x + dot(decoderC.yz, playbackCarrier);
+    float signalP1 = decoderP1.x + dot(decoderP1.yz, carrierP1);
+    float signalP2 = decoderP2.x + dot(decoderP2.yz, carrierP2);
+
+    float decodedNotchY = (signalM2 + signalM1 * 2.0
+                         + signalC * 2.0 + signalP1 * 2.0
+                         + signalP2) * 0.125;
+    vec2 decodedNotchChroma = (carrierM2 * signalM2
+                             + carrierM1 * signalM1 * 2.0
+                             + playbackCarrier * signalC * 2.0
+                             + carrierP1 * signalP1 * 2.0
+                             + carrierP2 * signalP2) * 0.25;
+    float decodedY = decodedNotchY;
+    vec2 decodedChroma = decodedNotchChroma;
+    float playbackLineCorrelation = 0.0;
+
+#if COMPOSITE_DECODER == 2
+#if SIGNAL_STANDARD == 0
+    vec2 adjacentUv = vec2(chromaUv.x,
+                           chromaUv.y + 1.0 / VHS_SIGNAL_LINES);
+    vec3 adjacentCenter = rgbToYiq(texture2D(
+        colortex0, safeUV(adjacentUv, pixel)).rgb);
+    playbackLineCorrelation = 1.0 - smoothstep(
+        0.018, 0.22,
+        abs(chromaCenter.x - adjacentCenter.x)
+        + length(chromaCenter.yz - adjacentCenter.yz) * 0.35);
+
+#if QUALITY_LEVEL == 2
+    vec3 adjacentM2 = rgbToYiq(texture2D(
+        colortex0, safeUV(adjacentUv - decoderStep * 2.0, pixel)).rgb);
+    vec3 adjacentM1 = rgbToYiq(texture2D(
+        colortex0, safeUV(adjacentUv - decoderStep, pixel)).rgb);
+    vec3 adjacentP1 = rgbToYiq(texture2D(
+        colortex0, safeUV(adjacentUv + decoderStep, pixel)).rgb);
+    vec3 adjacentP2 = rgbToYiq(texture2D(
+        colortex0, safeUV(adjacentUv + decoderStep * 2.0, pixel)).rgb);
+
+    float adjacentLine = playbackSignalLine + 1.0;
+    float adjacentPhase = playbackCarrierSample * PI * 0.50
+                        + adjacentLine * PI
+                        + mod(frame, 4.0) * PI * 0.50;
+    vec2 adjacentCarrierM2 = vec2(cos(adjacentPhase - PI),
+                                  sin(adjacentPhase - PI));
+    vec2 adjacentCarrierM1 = vec2(cos(adjacentPhase - PI * 0.50),
+                                  sin(adjacentPhase - PI * 0.50));
+    vec2 adjacentCarrier = vec2(cos(adjacentPhase), sin(adjacentPhase));
+    vec2 adjacentCarrierP1 = vec2(cos(adjacentPhase + PI * 0.50),
+                                  sin(adjacentPhase + PI * 0.50));
+    vec2 adjacentCarrierP2 = vec2(cos(adjacentPhase + PI),
+                                  sin(adjacentPhase + PI));
+
+    adjacentM2.yz = rotateChroma(adjacentM2.yz, phaseAngle);
+    adjacentM1.yz = rotateChroma(adjacentM1.yz, phaseAngle);
+    adjacentCenter.yz = rotateChroma(adjacentCenter.yz, phaseAngle);
+    adjacentP1.yz = rotateChroma(adjacentP1.yz, phaseAngle);
+    adjacentP2.yz = rotateChroma(adjacentP2.yz, phaseAngle);
+
+    float adjacentSignalM2 = adjacentM2.x
+                           + dot(adjacentM2.yz, adjacentCarrierM2);
+    float adjacentSignalM1 = adjacentM1.x
+                           + dot(adjacentM1.yz, adjacentCarrierM1);
+    float adjacentSignalC = adjacentCenter.x
+                          + dot(adjacentCenter.yz, adjacentCarrier);
+    float adjacentSignalP1 = adjacentP1.x
+                           + dot(adjacentP1.yz, adjacentCarrierP1);
+    float adjacentSignalP2 = adjacentP2.x
+                           + dot(adjacentP2.yz, adjacentCarrierP2);
+
+    float combSignalM2 = (signalM2 + adjacentSignalM2) * 0.50;
+    float combSignalM1 = (signalM1 + adjacentSignalM1) * 0.50;
+    float combSignalC = (signalC + adjacentSignalC) * 0.50;
+    float combSignalP1 = (signalP1 + adjacentSignalP1) * 0.50;
+    float combSignalP2 = (signalP2 + adjacentSignalP2) * 0.50;
+    float decodedCombY = (combSignalM2 + combSignalM1 * 2.0
+                        + combSignalC * 2.0 + combSignalP1 * 2.0
+                        + combSignalP2) * 0.125;
+
+    float chromaSignalM2 = (signalM2 - adjacentSignalM2) * 0.50;
+    float chromaSignalM1 = (signalM1 - adjacentSignalM1) * 0.50;
+    float chromaSignalC = (signalC - adjacentSignalC) * 0.50;
+    float chromaSignalP1 = (signalP1 - adjacentSignalP1) * 0.50;
+    float chromaSignalP2 = (signalP2 - adjacentSignalP2) * 0.50;
+    vec2 decodedCombChroma = (carrierM2 * chromaSignalM2
+                            + carrierM1 * chromaSignalM1 * 2.0
+                            + playbackCarrier * chromaSignalC * 2.0
+                            + carrierP1 * chromaSignalP1 * 2.0
+                            + carrierP2 * chromaSignalP2) * 0.25;
+    decodedY = mix(decodedNotchY, decodedCombY,
+                   playbackLineCorrelation);
+    decodedChroma = mix(decodedNotchChroma, decodedCombChroma,
+                        playbackLineCorrelation);
+#endif
+#endif
+#endif
+
+    float lumaDecodeMix = clamp(0.16 + CROSS_LUMA_STRENGTH * 0.62
+                              + DOT_CRAWL_STRENGTH * 0.18, 0.0, 1.0);
+    float chromaDecodeMix = clamp(0.18 + CROSS_COLOR_STRENGTH * 0.64
+                                + DOT_CRAWL_STRENGTH * 0.18, 0.0, 1.0);
+#if COMPOSITE_DECODER == 2
+#if QUALITY_LEVEL == 1
+    // Balanced recognizes correlated lines but avoids the extra five samples.
+    lumaDecodeMix *= mix(1.00, 0.58, playbackLineCorrelation);
+    chromaDecodeMix *= mix(1.00, 0.62, playbackLineCorrelation);
+#endif
+#endif
+    tapeLuma = mix(tapeLuma, decodedY, lumaDecodeMix);
+    tapeChroma = mix(tapeChroma, decodedChroma, chromaDecodeMix);
+#endif
 #endif
     color = yiqToRgb(vec3(tapeLuma,
                           tapeChroma * COLOR_SATURATION));
@@ -645,7 +796,10 @@ void main() {
     // separately adjustable high-contrast horizontal echo.
 #if QUALITY_LEVEL > 0
 #ifdef SPATIAL_ECHO
-    vec2 echoOffset = vec2((MOTION_SMEAR + 1.0) * displayScale * pixel.x, 0.0);
+    // Motion Smear now controls temporal persistence only. Spatial Echo has its
+    // own strength and derives its distance from tape softness.
+    vec2 echoOffset = vec2((TAPE_SOFTNESS + 1.0)
+                           * displayScale * pixel.x, 0.0);
     vec3 echoRgb = texture2D(colortex0, safeUV(sourceUv - echoOffset, pixel)).rgb;
     color = mix(color, echoRgb, clamp(SPATIAL_ECHO_STRENGTH, 0.0, 0.25));
 #endif
@@ -745,9 +899,14 @@ void main() {
     color = floor(clamp(color, 0.0, 1.0) * 235.0 + 0.5) / 235.0;
 #endif
 
-    // Real capture grade: muted contrast, weak blue response, and green cast.
-    color *= mix(vec3(1.0), vec3(0.94, 1.12, 0.72), TINT_STRENGTH * 0.92);
-    color = (color - 0.5) * mix(1.0, 0.86, WASHOUT_STRENGTH) + 0.5;
+    // Real capture grade is applied once, after tape generation loss: washed
+    // luma, compressed contrast, weak blue response, and a mild green cast.
+    float gradeLuma = dot(color, vec3(0.299, 0.587, 0.114));
+    color = mix(color, vec3(gradeLuma), WASHOUT_STRENGTH * 0.72);
+    color = (color - 0.5) * mix(1.0, 0.68, WASHOUT_STRENGTH) + 0.5;
+    color = color * mix(1.0, 0.88, WASHOUT_STRENGTH)
+          + vec3(0.035 * WASHOUT_STRENGTH);
+    color *= mix(vec3(1.0), vec3(1.03, 1.09, 0.78), TINT_STRENGTH);
     color = max(color - vec3(BLACK_CRUSH * 0.028), vec3(0.0));
     color = pow(max(color, vec3(0.0)), vec3(1.0 + BLACK_CRUSH * 0.88));
 
@@ -839,9 +998,12 @@ void main() {
                    * (0.07 + fieldLine * 0.18 + fineScan * 0.05);
 
     // A rare dropout is a short horizontal loss of signal with a noisy tail.
-    // Its probability follows the tracking control, so clean presets stay calm.
+    // Its probability follows physical tape wear/defect density; Glitch Frequency
+    // is reserved for transport tears and no longer changes oxide dropout rate.
     float dropoutTick = floor(time * 8.0);
-    float dropoutEvent = step(1.0 - GLITCH_FREQUENCY * 0.18,
+    float dropoutChance = clamp(0.002 + TAPE_WEAR * 0.12
+                              + DEFECT_DENSITY * 0.08, 0.0, 0.28);
+    float dropoutEvent = step(1.0 - dropoutChance,
                               hash21(vec2(dropoutTick, 73.9)));
     float dropoutY = hash21(vec2(dropoutTick, 22.4));
     float dropoutBand = 1.0 - smoothstep(0.0015, 0.0060,
@@ -862,7 +1024,8 @@ void main() {
     // seeded damaged track therefore travels through the raster over several
     // fields instead of being regenerated independently on every game frame.
     // The same time position always reconstructs the same dropout shape.
-    float virtualTapePosition = time * mix(0.018, 0.032, TAPE_WEAR);
+    // Wear changes defect probability/strength, not the physical tape speed.
+    float virtualTapePosition = time * 0.024;
     float defectCoordinate = (virtualTapePosition + frameUv.y * 0.060) * 18.0;
     float defectTrack = floor(defectCoordinate);
     float defectAge = fract(defectCoordinate);
@@ -942,18 +1105,31 @@ void main() {
     color = mix(color, vec3(staticValue),
                 chewBand * TAPE_CHEW_STRENGTH * 0.72);
 
-    // Head-switching area mixes in bright/black line noise at the frame bottom.
-    float headStatic = hash21(vec2(floor(frameUv.x * 260.0) + frame * 5.0,
-                                   floor(frameUv.y * 520.0) + frame * 2.0));
-    vec3 headColor = vec3(step(0.42, headStatic) * 0.72);
-    color = mix(color, headColor, headZone * HEAD_SWITCHING * 0.58);
+    // The same field-locked head mask that tore the raster now drops/rotates
+    // chroma and exposes line-correlated RF streaks. Geometry and noise therefore
+    // move as one analog fault instead of two unrelated effects.
+    vec3 headYiq = rgbToYiq(color);
+    float headPhaseJump = (headPolarity * 1.10 + headLineNoise * 0.70)
+                        * HEAD_SWITCHING;
+    headYiq.yz = rotateChroma(headYiq.yz,
+                              headBand * headPhaseJump);
+    headYiq.yz *= 1.0 - headBand * HEAD_SWITCHING * 0.85;
+    color = yiqToRgb(headYiq);
+    float headStatic = hash21(vec2(
+        floor(frameUv.x * 260.0) + headField * 5.0,
+        floor(signalLinePosition * 0.42) + headField * 2.0));
+    float headStreak = step(0.46 + headLineNoise * 0.16, headStatic);
+    vec3 headColor = vec3(headStreak * 0.78);
+    color = mix(color, headColor,
+                headZone * HEAD_SWITCHING
+                * mix(0.34, 0.64, abs(headLineNoise)));
 
     // Soft optical falloff inside the playback image.
     vec2 vignettePos = frameUv * 2.0 - 1.0;
     float vignetteRadius = dot(vignettePos * vec2(0.78, 1.0),
                                vignettePos * vec2(0.78, 1.0));
     float vignette = smoothstep(0.24, 1.25, vignetteRadius);
-    color *= 1.0 - vignette * VIGNETTE_STRENGTH * 0.78;
+    color *= 1.0 - vignette * VIGNETTE_STRENGTH;
 
 #ifdef ROUNDED_OVERSCAN
     // Signed rounded-rectangle mask in physical 4:3 frame proportions.

@@ -3,8 +3,10 @@
 // Main VHS post-processing pass.
 // colortex0 = Minecraft's current rendered scene.
 // colortex4 = last frame's fully processed VHS image.
+// colortex5 = matching logarithmic depth plus the persistent AGC gain state.
 uniform sampler2D colortex0;
 uniform sampler2D colortex4;
+uniform sampler2D colortex5;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex2;
 
@@ -18,6 +20,7 @@ uniform vec3 previousCameraPosition;
 uniform float viewWidth;
 uniform float viewHeight;
 uniform float frameTimeCounter;
+uniform float frameTime;
 uniform int frameCounter;
 
 varying vec2 texcoord;
@@ -25,11 +28,17 @@ varying vec2 texcoord;
 #include "/lib/settings.glsl"
 #include "/lib/analog_color.glsl"
 
-// Keep the history texture between frames. composite1 refreshes it at the end
-// of every frame. The frameCounter guard below avoids sampling it at startup.
+// Keep color history and metadata between frames. composite1 refreshes color at
+// the end of every frame; composite refreshes metadata in the paired ping-pong
+// target. The frameCounter guards below avoid sampling either at startup.
 const bool colortex4Clear = false;
+const bool colortex5Clear = false;
 
-/* RENDERTARGETS: 0 */
+/*
+const int colortex5Format = RG16F;
+*/
+
+/* RENDERTARGETS: 0,5 */
 
 const float PI = 3.14159265358979323846;
 
@@ -61,6 +70,33 @@ float smoothNoise21(vec2 p) {
 
 vec2 clampUV(vec2 uv, vec2 pixel) {
     return clamp(uv, pixel * 1.5, vec2(1.0) - pixel * 1.5);
+}
+
+// The metadata buffer stores logarithmic view distance. A logarithmic encoding
+// keeps sub-block precision near the camera while still representing the far
+// plane in a compact RG16F target.
+float encodeViewDistance(float viewDistance) {
+    return clamp(log2(1.0 + max(viewDistance, 0.0)) / 16.0, 0.0, 1.0);
+}
+
+float decodeViewDistance(float encodedDistance) {
+    return exp2(clamp(encodedDistance, 0.0, 1.0) * 16.0) - 1.0;
+}
+
+float viewDistanceAt(vec2 screenUv) {
+    float depth = texture2D(depthtex0, screenUv).r;
+    if (depth >= 0.99998) {
+        return 65535.0;
+    }
+
+    vec4 clipPosition = vec4(screenUv * 2.0 - 1.0,
+                             depth * 2.0 - 1.0,
+                             1.0);
+    vec4 viewPosition = gbufferProjectionInverse * clipPosition;
+    if (abs(viewPosition.w) <= 0.00001) {
+        return 65535.0;
+    }
+    return length(viewPosition.xyz / viewPosition.w);
 }
 
 // Quantize texture coordinates rather than resizing the render target. This
@@ -138,8 +174,15 @@ float analogFogAmount(vec2 screenUv, float time) {
 // Move a current screen pixel into the previous camera frame. Sky pixels and
 // invalid/off-screen projections fall back to ordinary screen-space history,
 // which keeps the pack safe on dimensions and Iris versions where depth is 1.
-vec2 reprojectHistoryUV(vec2 screenUv, vec2 pixel, out float confidence) {
+vec2 reprojectHistoryUV(vec2 screenUv,
+                        vec2 pixel,
+                        vec2 resolution,
+                        out float confidence,
+                        out float validity,
+                        out float motionPixels) {
     confidence = 0.0;
+    validity = 0.68;
+    motionPixels = 0.0;
 #ifdef MOTION_AWARE_HISTORY
     float depth = texture2D(depthtex0, screenUv).r;
     if (depth < 0.99998) {
@@ -148,6 +191,7 @@ vec2 reprojectHistoryUV(vec2 screenUv, vec2 pixel, out float confidence) {
         float stableDepth = texture2D(depthtex2, screenUv).r;
         float depthAgreement = 1.0
                              - step(0.0005, abs(depth - stableDepth));
+        validity = mix(0.16, 1.0, depthAgreement);
         vec4 clipPosition = vec4(screenUv * 2.0 - 1.0,
                                  depth * 2.0 - 1.0,
                                  1.0);
@@ -159,41 +203,68 @@ vec2 reprojectHistoryUV(vec2 screenUv, vec2 pixel, out float confidence) {
             worldPosition.xyz += cameraPosition;
             worldPosition.xyz -= previousCameraPosition;
 
-            vec4 previousClip = gbufferPreviousProjection
-                              * gbufferPreviousModelView
-                              * worldPosition;
+            vec4 previousView = gbufferPreviousModelView * worldPosition;
+            vec4 previousClip = gbufferPreviousProjection * previousView;
             if (previousClip.w > 0.00001) {
                 vec2 previousUv = previousClip.xy / previousClip.w
                                 * 0.5 + 0.5;
                 vec2 lowerInside = step(vec2(0.0), previousUv);
                 vec2 upperInside = step(previousUv, vec2(1.0));
-                confidence = lowerInside.x * lowerInside.y
-                           * upperInside.x * upperInside.y
-                           * depthAgreement;
+                float inside = lowerInside.x * lowerInside.y
+                             * upperInside.x * upperInside.y;
+                motionPixels = length((previousUv - screenUv) * resolution);
+
+                float expectedDistance = length(previousView.xyz);
+                float storedEncoded = texture2D(
+                    colortex5, clampUV(previousUv, pixel)).r;
+                float storedValid = step(0.0001, storedEncoded);
+                float storedDistance = decodeViewDistance(storedEncoded);
+                float bestDelta = abs(storedDistance - expectedDistance)
+                                + (1.0 - storedValid) * 1000000.0;
+#if QUALITY_LEVEL > 0
+                // A small cross neighborhood tolerates raster/time-base motion
+                // in the processed history without accepting a foreground depth
+                // that has disappeared in the new frame.
+                float encodedLeft = texture2D(
+                    colortex5, clampUV(previousUv - vec2(pixel.x, 0.0), pixel)).r;
+                float encodedRight = texture2D(
+                    colortex5, clampUV(previousUv + vec2(pixel.x, 0.0), pixel)).r;
+                float encodedUp = texture2D(
+                    colortex5, clampUV(previousUv + vec2(0.0, pixel.y), pixel)).r;
+                float encodedDown = texture2D(
+                    colortex5, clampUV(previousUv - vec2(0.0, pixel.y), pixel)).r;
+                bestDelta = min(bestDelta,
+                    abs(decodeViewDistance(encodedLeft) - expectedDistance)
+                    + (1.0 - step(0.0001, encodedLeft)) * 1000000.0);
+                bestDelta = min(bestDelta,
+                    abs(decodeViewDistance(encodedRight) - expectedDistance)
+                    + (1.0 - step(0.0001, encodedRight)) * 1000000.0);
+                bestDelta = min(bestDelta,
+                    abs(decodeViewDistance(encodedUp) - expectedDistance)
+                    + (1.0 - step(0.0001, encodedUp)) * 1000000.0);
+                bestDelta = min(bestDelta,
+                    abs(decodeViewDistance(encodedDown) - expectedDistance)
+                    + (1.0 - step(0.0001, encodedDown)) * 1000000.0);
+#endif
+                float depthTolerance = max(0.35, expectedDistance * 0.020);
+                float metadataValid = 1.0 - step(999999.0, bestDelta);
+                float depthValidity = 1.0 - smoothstep(
+                    depthTolerance, depthTolerance * 2.5, bestDelta);
+                float cameraJump = length(cameraPosition - previousCameraPosition);
+                float cameraValidity = 1.0 - smoothstep(16.0, 64.0, cameraJump);
+
+                validity *= inside * metadataValid * depthValidity
+                          * cameraValidity;
+                confidence = inside * depthAgreement * validity;
                 return clampUV(previousUv, pixel);
             }
         }
+        validity *= 0.16;
     }
+#else
+    validity = 1.0;
 #endif
     return clampUV(screenUv, pixel);
-}
-
-// Washed-out tape stock plus a yellow-green security-camera cast. Luma is kept
-// explicit so the washout slider changes saturation and contrast together.
-vec3 gradeOldTape(vec3 color) {
-    float luma = dot(color, vec3(0.299, 0.587, 0.114));
-    color = mix(color, vec3(luma), WASHOUT_STRENGTH * 0.72);
-
-    float contrast = mix(1.0, 0.68, WASHOUT_STRENGTH);
-    color = (color - 0.5) * contrast + 0.5;
-
-    // Lift crushed blacks and gently cap highlights like a poor analog transfer.
-    color = color * mix(1.0, 0.88, WASHOUT_STRENGTH)
-          + vec3(0.035 * WASHOUT_STRENGTH);
-
-    vec3 sicklyTint = vec3(1.03, 1.09, 0.78);
-    color *= mix(vec3(1.0), sicklyTint, TINT_STRENGTH);
-    return color;
 }
 
 void main() {
@@ -206,23 +277,10 @@ void main() {
     float frame = floor(time * VHS_FIELD_RATE);
 
     // -------------------------------------------------------------------------
-    // Handheld motion, random frame jitter, and horizontal tracking glitches.
+    // Recording transport timing and horizontal tracking glitches. Camera
+    // wobble, frame jitter, lens curvature, and framing are applied once in the
+    // playback pass so their controls no longer square the same transform.
     // -------------------------------------------------------------------------
-
-    // Wobble is deliberately made from mismatched frequencies so it never feels
-    // like a clean cinematic camera animation.
-    vec2 wobblePixels = vec2(
-        sin(time * 1.13) + 0.43 * sin(time * 2.71 + 1.2),
-        0.62 * sin(time * 0.83 + 2.1) + 0.28 * sin(time * 2.03)
-    ) * WOBBLE_STRENGTH;
-
-    // Hold jitter for two frames at a time, matching an unstable tape lock more
-    // closely than smooth noise would.
-    float jitterFrame = floor(frame * 0.5);
-    vec2 jitterPixels = vec2(
-        hash11(jitterFrame + 17.0) - 0.5,
-        hash11(jitterFrame + 53.0) - 0.5
-    ) * (2.0 * FRAME_JITTER);
 
     // Mechanical time-base error drifts continuously across neighboring raster
     // lines. Two differently scaled noise bands represent slow capstan error and
@@ -294,30 +352,9 @@ void main() {
              * (0.10 + syncProgress * 0.90) * SYNC_GLITCH_STRENGTH;
 #endif
 
-    vec2 uv = texcoord + (wobblePixels + jitterPixels) * pixel;
+    vec2 uv = texcoord;
     uv.x += glitchPixels * pixel.x;
     uv.y = mix(uv.y, fract(uv.y + syncRoll), step(0.0001, syncRoll));
-
-    // -------------------------------------------------------------------------
-    // Cheap-lens barrel distortion.
-    // Aspect correction keeps the distortion circular on widescreen displays.
-    // -------------------------------------------------------------------------
-    vec2 lens = uv * 2.0 - 1.0;
-    lens.x *= viewWidth / viewHeight;
-    float radius2 = dot(lens, lens);
-    lens *= 1.0 + LENS_DISTORTION * radius2;
-    lens.x *= viewHeight / viewWidth;
-    uv = lens * 0.5 + 0.5;
-
-    // The border is controlled only by ROUNDED_OVERSCAN. Lens distortion remains
-    // active when it is disabled, but the output edge becomes truly rectangular.
-    float lensBorder = 1.0;
-#ifdef ROUNDED_OVERSCAN
-    vec2 edge = smoothstep(vec2(0.0), pixel * 5.0, uv)
-              * (vec2(1.0) - smoothstep(vec2(1.0) - pixel * 5.0,
-                                        vec2(1.0), uv));
-    lensBorder = edge.x * edge.y;
-#endif
 
     uv = virtualPixels(clampUV(uv, pixel), resolution);
     uv = clampUV(uv, pixel);
@@ -362,6 +399,48 @@ void main() {
     smearFront = mix(smearFront, fogColor, fogAmount);
 #endif
 
+    // Persistent camcorder AGC. colortex5.g stores the actual gain state instead
+    // of estimating it from a processed history pixel. Gain reduction reacts
+    // quickly to a bright room; recovery in darkness is deliberately slower.
+    float nextAgcGain = 1.0;
+    float appliedAgcGain = 1.0;
+#ifdef AUTO_EXPOSURE
+    vec3 meterWeights = vec3(0.299, 0.587, 0.114);
+#if QUALITY_LEVEL == 0
+    float logMeter = log2(max(dot(texture2D(
+        colortex0, vec2(0.50, 0.50)).rgb, meterWeights), 0.002));
+#else
+    float logMeter = log2(max(dot(texture2D(
+        colortex0, vec2(0.50, 0.50)).rgb, meterWeights), 0.002)) * 0.36;
+    logMeter += log2(max(dot(texture2D(
+        colortex0, vec2(0.24, 0.28)).rgb, meterWeights), 0.002)) * 0.16;
+    logMeter += log2(max(dot(texture2D(
+        colortex0, vec2(0.76, 0.28)).rgb, meterWeights), 0.002)) * 0.16;
+    logMeter += log2(max(dot(texture2D(
+        colortex0, vec2(0.24, 0.72)).rgb, meterWeights), 0.002)) * 0.16;
+    logMeter += log2(max(dot(texture2D(
+        colortex0, vec2(0.76, 0.72)).rgb, meterWeights), 0.002)) * 0.16;
+#endif
+    float sceneMeter = exp2(logMeter);
+    float targetAgcGain = clamp(0.36 / max(sceneMeter, 0.025), 0.65, 1.80);
+    float storedAgcGain = texture2D(colortex5, vec2(0.50, 0.50)).g;
+    float storedAgcValid = step(0.45, storedAgcGain)
+                         * step(storedAgcGain, 2.20)
+                         * step(3.0, float(frameCounter));
+    float previousAgcGain = mix(1.0, storedAgcGain, storedAgcValid);
+    float responseTau = mix(0.14, 0.85,
+                            step(previousAgcGain, targetAgcGain));
+    float responseAmount = 1.0 - exp(-clamp(frameTime, 0.0, 0.10)
+                                     / responseTau);
+    nextAgcGain = mix(previousAgcGain, targetAgcGain, responseAmount);
+    appliedAgcGain = mix(1.0, nextAgcGain, EXPOSURE_PUMP_STRENGTH);
+#endif
+    centerSample *= appliedAgcGain;
+    positiveSample *= appliedAgcGain;
+    negativeSample *= appliedAgcGain;
+    smearBack *= appliedAgcGain;
+    smearFront *= appliedAgcGain;
+
     vec3 color;
 #ifdef YIQ_SIGNAL
     vec3 centerYiq = rgbToYiq(centerSample);
@@ -401,104 +480,15 @@ void main() {
 #endif
     vec2 tapeChroma = rotateChroma(vec2(tapeI, tapeQ), firstPhaseAngle);
 
-    // Composite encode/decode leakage. A low-cost consumer notch filter cannot
-    // perfectly separate high-frequency luminance from the color subcarrier,
-    // so sharp texture detail becomes false rainbow color and saturated edges
-    // leave a moving dot pattern in luminance. The two-line comb option compares
-    // adjacent scan lines and suppresses leakage where the picture correlates.
-#if COMPOSITE_DECODER > 0
-    float compositeLine = floor(texcoord.y * VHS_SIGNAL_LINES);
-    float carrierSample = uv.x * viewWidth / max(PIXEL_SCALE, 1.0);
-    float carrierPhase = carrierSample * PI * 0.50
-                       + compositeLine * PI
-                       + mod(frame, 4.0) * PI * 0.50;
-#if SIGNAL_STANDARD == 1
-    carrierPhase += mod(compositeLine, 2.0) * PI * 0.50;
-#endif
-    vec2 carrier = vec2(cos(carrierPhase), sin(carrierPhase));
-    float lumaHigh = centerYiq.x
-                   - (positiveYiq.x + negativeYiq.x) * 0.50;
-    float decoderLeak = 1.0;
-
-#if COMPOSITE_DECODER == 2
-#if QUALITY_LEVEL == 0
-    decoderLeak = 0.52;
-#else
-    vec2 adjacentUv = clampUV(
-        uv + vec2(0.0, 1.0 / VHS_SIGNAL_LINES), pixel);
-    vec3 adjacentYiq = rgbToYiq(texture2D(colortex0, adjacentUv).rgb);
-    float adjacentDifference = abs(centerYiq.x - adjacentYiq.x)
-                             + length(centerYiq.yz - adjacentYiq.yz) * 0.35;
-    float lineCorrelation = 1.0
-                          - smoothstep(0.018, 0.22, adjacentDifference);
-    decoderLeak = mix(0.62, 0.18, lineCorrelation);
-#endif
-#endif
-
-    float edgeMask = clamp(abs(lumaHigh) * 8.0, 0.0, 1.0);
-    float dotCarrier = sin(carrierPhase + compositeLine * PI * 0.50);
-    float chromaOnCarrier = dot(tapeChroma, carrier);
-
-    tapeY += (chromaOnCarrier * CROSS_LUMA_STRENGTH * 0.24
-              + dotCarrier * edgeMask * DOT_CRAWL_STRENGTH * 0.026)
-           * decoderLeak;
-    tapeChroma += carrier
-                * (lumaHigh * CROSS_COLOR_STRENGTH * 0.58
-                   + dotCarrier * edgeMask * DOT_CRAWL_STRENGTH * 0.013)
-                * decoderLeak;
-#endif
+    // The recording pass stops at the bandwidth-limited color-under signal.
+    // Composite modulation and the user-selected decoder now happen exactly once
+    // in final.fsh, avoiding the previous double-strength decorative leakage.
     color = yiqToRgb(vec3(tapeY, tapeChroma));
 #else
     // Legacy RGB mode is kept as an option for comparison and older hardware.
     color = vec3(positiveSample.r, centerSample.g, negativeSample.b);
     color = color * 0.78 + smearBack * 0.15 + smearFront * 0.07;
 #endif
-
-    // Sparse whole-frame metering imitates a cheap camcorder's automatic gain
-    // circuit. The previous processed frame dominates the meter, so transitions
-    // into dark or bright rooms settle with a visible delayed pump instead of an
-    // instantaneous modern exposure correction.
-#ifdef AUTO_EXPOSURE
-    if (frameCounter > 2) {
-        vec3 meterWeights = vec3(0.299, 0.587, 0.114);
-#if QUALITY_LEVEL == 0
-        // Two taps instead of ten make automatic exposure inexpensive enough
-        // for integrated GPUs while preserving its delayed response.
-        float currentMeter = dot(texture2D(colortex0, vec2(0.50)).rgb,
-                                 meterWeights);
-        float historyMeter = dot(texture2D(colortex4, vec2(0.50)).rgb,
-                                 meterWeights);
-#else
-        float currentMeter = dot(texture2D(colortex0, vec2(0.50, 0.50)).rgb,
-                                 meterWeights) * 0.36;
-        currentMeter += dot(texture2D(colortex0, vec2(0.24, 0.28)).rgb,
-                            meterWeights) * 0.16;
-        currentMeter += dot(texture2D(colortex0, vec2(0.76, 0.28)).rgb,
-                            meterWeights) * 0.16;
-        currentMeter += dot(texture2D(colortex0, vec2(0.24, 0.72)).rgb,
-                            meterWeights) * 0.16;
-        currentMeter += dot(texture2D(colortex0, vec2(0.76, 0.72)).rgb,
-                            meterWeights) * 0.16;
-
-        float historyMeter = dot(texture2D(colortex4, vec2(0.50, 0.50)).rgb,
-                                 meterWeights) * 0.36;
-        historyMeter += dot(texture2D(colortex4, vec2(0.24, 0.28)).rgb,
-                            meterWeights) * 0.16;
-        historyMeter += dot(texture2D(colortex4, vec2(0.76, 0.28)).rgb,
-                            meterWeights) * 0.16;
-        historyMeter += dot(texture2D(colortex4, vec2(0.24, 0.72)).rgb,
-                            meterWeights) * 0.16;
-        historyMeter += dot(texture2D(colortex4, vec2(0.76, 0.72)).rgb,
-                            meterWeights) * 0.16;
-#endif
-
-        float adaptedMeter = mix(currentMeter, historyMeter, 0.82);
-        float exposureTarget = clamp(0.38 / max(adaptedMeter, 0.06),
-                                     0.72, 1.55);
-        color *= mix(1.0, exposureTarget, EXPOSURE_PUMP_STRENGTH);
-    }
-#endif
-    color = gradeOldTape(color);
 
     // -------------------------------------------------------------------------
     // Temporal ghosting. colortex4 contains the last *processed* frame. Stable
@@ -507,11 +497,19 @@ void main() {
     // A partial blend preserves genuine analog lag instead of turning the
     // history buffer into modern temporal anti-aliasing.
     // -------------------------------------------------------------------------
+    float reprojectionConfidence = 0.0;
+    float historyValidity = 1.0;
+    float historyMotionPixels = 0.0;
+    vec2 reprojectedUv = texcoord;
+    if (frameCounter > 2) {
+        reprojectedUv = reprojectHistoryUV(uv, pixel, resolution,
+                                           reprojectionConfidence,
+                                           historyValidity,
+                                           historyMotionPixels);
+    }
+
     if (frameCounter > 2) {
         vec2 historyOffset = vec2(-0.65 * MOTION_SMEAR * pixel.x, 0.0);
-        float reprojectionConfidence;
-        vec2 reprojectedUv = reprojectHistoryUV(texcoord, pixel,
-                                                reprojectionConfidence);
         vec2 historyUv = mix(texcoord, reprojectedUv,
                              REPROJECTION_STRENGTH * reprojectionConfidence);
         historyUv = clampUV(historyUv + historyOffset, pixel);
@@ -521,14 +519,20 @@ void main() {
         // processed frame. This limits full-screen double exposure during fast
         // camera turns without removing the smaller differences that form tape
         // trails on moving objects.
-        float historyRange = mix(1.0, 0.12, HISTORY_STABILIZATION);
+        float historyRange = mix(0.80, 0.10, HISTORY_STABILIZATION);
         history = clamp(history,
                         color - vec3(historyRange),
                         color + vec3(historyRange));
         float difference = length(color - history);
+        float fastMotionRetention = mix(
+            1.0,
+            1.0 - smoothstep(160.0, 620.0, historyMotionPixels) * 0.42,
+            HISTORY_STABILIZATION);
         float adaptiveGhost = GHOST_STRENGTH
                             * mix(0.68, 1.22, smoothstep(0.04, 0.55, difference))
-                            * mix(0.92, 1.0, reprojectionConfidence);
+                            * mix(0.88, 1.0, reprojectionConfidence)
+                            * historyValidity
+                            * fastMotionRetention;
         color = mix(color, history, clamp(adaptiveGhost, 0.0, 0.45));
 
 #ifdef CHROMA_PERSISTENCE
@@ -539,7 +543,8 @@ void main() {
         vec3 currentYiq = rgbToYiq(color);
         vec3 historyYiq = rgbToYiq(history);
         float chromaTrail = CHROMA_PERSISTENCE_STRENGTH
-                          * smoothstep(0.025, 0.45, difference);
+                          * smoothstep(0.025, 0.45, difference)
+                          * historyValidity;
         currentYiq.yz = mix(currentYiq.yz, historyYiq.yz, chromaTrail);
         color = yiqToRgb(currentYiq);
 #else
@@ -548,7 +553,8 @@ void main() {
         vec3 currentChroma = color - vec3(currentLuma);
         vec3 historyChroma = history - vec3(historyLuma);
         float chromaTrail = CHROMA_PERSISTENCE_STRENGTH
-                          * smoothstep(0.025, 0.45, difference);
+                          * smoothstep(0.025, 0.45, difference)
+                          * historyValidity;
         color = vec3(currentLuma)
               + mix(currentChroma, historyChroma, chromaTrail);
 #endif
@@ -598,83 +604,10 @@ void main() {
 #endif
 #endif
 
-    // -------------------------------------------------------------------------
-    // Exposure flicker: a fast uneven waveform plus frame-random flutter. The
-    // pattern is intentionally imperfect and never resolves to a clean sine.
-    // -------------------------------------------------------------------------
-    float flickerWave = sin(time * 19.7) * 0.50
-                      + sin(time * 7.3 + 2.0) * 0.28
-                      + (hash11(frame + 31.0) - 0.5) * 0.90;
-    color *= 1.0 + flickerWave * FLICKER_STRENGTH;
-
-    // -------------------------------------------------------------------------
-    // Analog grain, dropouts, scanlines, and occasional full-screen static.
-    // Noise is evaluated at virtual-pixel scale to look recorded rather than
-    // like modern high-resolution film grain.
-    // -------------------------------------------------------------------------
-    vec2 noiseCell = floor(texcoord * resolution / max(1.0, PIXEL_SCALE));
-    float grain = hash21(noiseCell + vec2(frame * 1.73, frame * 0.37)) - 0.5;
-    float lineNoise = hash21(vec2(floor(texcoord.y * VHS_SIGNAL_LINES),
-                                  floor(time * 29.0))) - 0.5;
-    color += vec3(grain * NOISE_STRENGTH);
-    color += vec3(lineNoise * NOISE_STRENGTH * 0.34);
-
-    // Low-level colored speckle simulates chroma noise in dark tape regions.
-    vec3 chromaNoise = vec3(
-        hash21(noiseCell + vec2(frame, 7.0)),
-        hash21(noiseCell + vec2(13.0, frame)),
-        hash21(noiseCell + vec2(frame + 29.0, 3.0))
-    ) - 0.5;
-    color += chromaNoise * NOISE_STRENGTH * 0.18;
-
-    // One darker line per three output pixels, plus a weaker traveling ripple.
-    float scanRow = mod(floor(texcoord.y * viewHeight), 3.0);
-    float hardScanline = step(2.0, scanRow);
-    float fineScanline = 0.5 + 0.5 * sin(texcoord.y * viewHeight * PI
-                                       + time * 1.7);
-    float scanDarkening = SCANLINE_STRENGTH
-                        * (0.18 + hardScanline * 0.68 + fineScanline * 0.14);
-    color *= 1.0 - scanDarkening;
-
-    // Tracking band gets a bright leading edge and a dirty shadow below it.
-    float trackingShadow = pow(max(0.0, 1.0 - abs(trackingDistance - 0.012)
-                                             * 95.0), 4.0);
-    color += vec3(trackingBand * (0.055 + 0.04 * lineNoise));
-    color *= 1.0 - trackingShadow * 0.08;
-
-    // Very short bursts occur at the start of some time cells. During a burst,
-    // noisy horizontal bands can nearly overwhelm the picture for a few frames.
-    float staticTick = floor(time * 1.75);
-    float staticWindow = 1.0 - step(0.095, fract(time * 1.75));
-    float staticEvent = step(1.0 - STATIC_FREQUENCY,
-                             hash21(vec2(staticTick, 83.1))) * staticWindow;
-    float staticNoise = hash21(noiseCell * vec2(1.0, 0.37)
-                               + vec2(frame * 7.0, frame * 3.0));
-    float staticStripe = step(0.46,
-                              hash21(vec2(floor(texcoord.y * 90.0), frame)));
-    vec3 interference = vec3(staticNoise * 0.92 + staticStripe * 0.18);
-    color = mix(color, interference, staticEvent * 0.72);
-
-    // Sparse white/black dropouts happen even outside major static bursts.
-    float dropoutSeed = hash21(noiseCell + vec2(frame * 11.0, 41.0));
-    float whiteDropout = step(0.9972 - NOISE_STRENGTH * 0.004, dropoutSeed);
-    float blackDropout = step(dropoutSeed, 0.0012 + NOISE_STRENGTH * 0.002);
-    color = mix(color, vec3(0.92), whiteDropout * 0.65);
-    color = mix(color, vec3(0.02), blackDropout * 0.72);
-
-    // -------------------------------------------------------------------------
-    // Cheap-lens vignette and final overscan. The exponent keeps the middle of
-    // the frame readable while making corners visibly stale and enclosed.
-    // -------------------------------------------------------------------------
-    vec2 vignettePos = texcoord * 2.0 - 1.0;
-    float vignetteRadius = dot(vignettePos * vec2(0.78, 1.0),
-                               vignettePos * vec2(0.78, 1.0));
-    float vignette = smoothstep(0.34, 1.28, vignetteRadius);
-    color *= 1.0 - vignette * VIGNETTE_STRENGTH;
-    color *= lensBorder;
-
-    // A tiny lifted floor avoids pristine digital black except beyond the lens.
-    color += vec3(0.006, 0.008, 0.004) * lensBorder;
+    // Visible playback noise, scanlines, static, grade, vignette, and framing are
+    // applied once in final.fsh. Keeping the history buffer at the recorded-signal
+    // stage prevents recursive grain and makes every public control predictable.
+    float outputDepthEncoded = encodeViewDistance(viewDistanceAt(uv));
 
 #ifdef INTERLACED_FIELDS
     // True field weave: only one parity of recorded raster lines is refreshed
@@ -686,15 +619,26 @@ void main() {
         float lineParity = mod(floor(texcoord.y * VHS_SIGNAL_LINES), 2.0);
         float currentFieldLine = 1.0 - step(0.5,
                                             abs(lineParity - fieldParity));
-        vec2 previousFieldUv = clampUV(
-            texcoord + vec2(lineTimebase * pixel.x * 0.18, 0.0),
+        vec2 previousFieldUv = mix(texcoord, reprojectedUv,
+            REPROJECTION_STRENGTH * reprojectionConfidence);
+        previousFieldUv = clampUV(
+            previousFieldUv + vec2(lineTimebase * pixel.x * 0.18, 0.0),
             pixel);
         vec3 previousField = texture2D(colortex4, previousFieldUv).rgb;
+        float previousFieldDepth = texture2D(colortex5, previousFieldUv).r;
+        // Held lines use the same depth/disocclusion rejection as temporal
+        // ghosting, so a departed foreground object cannot be woven onto newly
+        // revealed background or perpetuate its stale depth metadata.
         float previousFieldMix = (1.0 - currentFieldLine)
-                               * INTERLACE_STRENGTH;
+                               * INTERLACE_STRENGTH
+                               * historyValidity;
         color = mix(color, previousField, previousFieldMix);
+        outputDepthEncoded = mix(outputDepthEncoded,
+                                 previousFieldDepth,
+                                 previousFieldMix);
     }
 #endif
 
     gl_FragData[0] = vec4(clamp(color, 0.0, 1.0), 1.0);
+    gl_FragData[1] = vec4(outputDepthEncoded, nextAgcGain, 0.0, 1.0);
 }
