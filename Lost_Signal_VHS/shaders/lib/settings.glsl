@@ -39,20 +39,20 @@
 #define CHROMA_PERSISTENCE_STRENGTH 0.20 // [0.00 0.05 0.10 0.15 0.20 0.30 0.45] Previous-frame color retained during movement.
 
 // Composite decoder. The consumer notch path deliberately leaks high-frequency
-// luma into color and color back into luma; the two-line comb path suppresses
-// most of that leakage on vertically correlated picture detail.
-#define COMPOSITE_DECODER 1 // [0 1 2] Bypass, consumer notch filter, or two-line comb filter.
+// luma into color and color back into luma. Cinematic NTSC can compare two lines;
+// PAL safely retains the notch path because its V phase alternates differently.
+#define COMPOSITE_DECODER 1 // [0 1 2] Bypass, consumer notch filter, or NTSC two-line comb filter.
 #define DOT_CRAWL_STRENGTH 0.25 // [0.00 0.10 0.20 0.25 0.35 0.50 0.70 1.00] Moving subcarrier dots along sharp color and brightness edges.
 #define CROSS_COLOR_STRENGTH 0.20 // [0.00 0.08 0.15 0.20 0.30 0.45 0.65 1.00] False rainbow color decoded from fine luminance detail.
 #define CROSS_LUMA_STRENGTH 0.15 // [0.00 0.08 0.15 0.20 0.30 0.45 0.65 1.00] Chroma carrier leaking into the reconstructed luminance channel.
 
 // Camera imperfections
-#define CHROMA_AMOUNT 4.0 // [0.0 0.5 1.0 1.5 2.5 4.0 6.0 9.0] Red/blue channel misalignment, in pixels.
+#define CHROMA_AMOUNT 4.0 // [0.0 0.5 1.0 1.5 2.5 4.0 6.0 9.0] Recorded chroma timing misalignment, in pixels.
 #define LENS_DISTORTION 0.040 // [0.000 0.008 0.015 0.025 0.040 0.060 0.085] Consumer CRT/camcorder barrel distortion.
 #define FLICKER_STRENGTH 0.020 // [0.000 0.010 0.020 0.035 0.055 0.080 0.120] Uneven analog exposure flutter.
 #define FRAME_JITTER 0.8 // [0.0 0.4 0.8 1.2 1.8 2.6 4.0] Random frame displacement, in pixels.
 #define WOBBLE_STRENGTH 1.0 // [0.0 0.5 1.0 1.5 2.5 4.0 6.0] Slow imperfect image drift, in pixels.
-#define MOTION_SMEAR 4.0 // [0.0 0.5 1.0 1.5 2.5 4.0 6.0] Horizontal luma smear radius, in pixels.
+#define MOTION_SMEAR 4.0 // [0.0 0.5 1.0 1.5 2.5 4.0 6.0] Luma trail length across and between fields, in pixels.
 #define GHOST_STRENGTH 0.18 // [0.00 0.04 0.08 0.13 0.18 0.25 0.35] Amount of the previous processed frame retained.
 #define HISTORY_STABILIZATION 0.55 // [0.00 0.25 0.40 0.55 0.70 0.85 1.00] Rejects implausible history colors during fast camera motion.
 #define MOTION_AWARE_HISTORY // Reprojects the previous processed frame through camera depth and matrices.

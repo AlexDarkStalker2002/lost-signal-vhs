@@ -9,9 +9,11 @@
 Lightweight analog-horror post-processing for Minecraft Java Edition.<br>
 Scanlines, tape grain, tracking tears, color bleed, temporal ghosting, lens
 distortion, sync failures, a proper signal-space YIQ pipeline, and dedicated
-Backrooms, Poolrooms, and Liminal Night lighting. Version 1.8.1 includes the
-depth-based analog fog introduced in v1.8 and replaces its invalid Windows-built
-archive with standard portable ZIP paths that Iris can discover correctly.
+Backrooms, Poolrooms, and Liminal Night lighting. Version 1.9 rebuilds the
+signal path around persistent depth-aware history, stateful automatic gain,
+one physical composite decoder, and field-locked head switching, while making
+the settings easier to navigate and keeping all thirteen preset transitions
+self-contained.
 
 <p>
   <a href="https://modrinth.com/shader/lost-signal-vhs">
@@ -24,7 +26,7 @@ archive with standard portable ZIP paths that Iris can discover correctly.
 
 ![Minecraft 1.18.2–26.2](https://img.shields.io/badge/Minecraft-1.18.2%E2%80%9326.2-62B47A?style=flat-square)
 ![Iris](https://img.shields.io/badge/Iris-1.6.11%2B-5C6BC0?style=flat-square)
-![OptiFine compatible](https://img.shields.io/badge/OptiFine-Compatible-EF6C00?style=flat-square)
+![OptiFine layout, untested](https://img.shields.io/badge/OptiFine-layout%20only%20%28untested%29-EF6C00?style=flat-square)
 ![MIT License](https://img.shields.io/badge/License-MIT-E7B416?style=flat-square)
 
 </div>
@@ -40,12 +42,18 @@ placing a noise texture over the screen.
 - Tracking tears, head-switch noise, frame jitter, and curved overscan
 - Chroma bleed, RGB separation, phase wobble, and YIQ color processing
 - Persistent temporal ghosting using the previous processed frame
-- Depth-based motion-aware history that follows stable world geometry
-- Consumer notch and two-line comb decoder models
+- Depth-aware motion history that follows stable geometry and rejects
+  disoccluded or mismatched surfaces
+- Persistent automatic gain with fast overload response and slower recovery
+- One physical composite decode stage: a lightweight Performance approximation,
+  a five-tap Balanced/Cinematic notch filter, and a Cinematic NTSC two-line comb
+  path; PAL safely falls back to the notch decoder
 - Dot crawl, cross-color rainbows, and cross-luma carrier leakage
 - Persistent oxide defects tied to a continuously moving virtual tape
 - Depth-based fog recorded before YIQ/tape degradation, with world-stable variation
 - True NTSC/PAL field weaving through the persistent history buffer
+- Field-locked head-switch displacement, chroma loss, and RF noise driven by
+  one shared tape event
 - Smooth mechanically correlated time-base error and feathered tracking tears
 - Performance, Balanced, and Cinematic render-quality modes
 - Selectable NTSC and PAL signal timing
@@ -102,9 +110,14 @@ the scene playable.
 | Java Edition 1.18.2 | Iris 1.6.11 with Sodium | OpenGL | Extended |
 
 **Supported** rows are the established primary targets. **Extended** rows use
-the same GLSL 1.20, depth-buffer, and composite interfaces and are included in
-the v1.8 compatibility target; live verification on every loader/driver pair is
-still recommended.
+the same conservative GLSL 1.20, depth-buffer, and composite interfaces and are
+included in the v1.9 compatibility target. Not every loader, GPU, and driver
+combination in the table has been live-tested, so local verification is still
+recommended.
+
+Iris is the supported and live-tested shader loader. The source also follows
+the traditional OptiFine shader-pack layout, but v1.9 has not been live-tested
+on OptiFine and the badge above is not a compatibility guarantee.
 
 > [!IMPORTANT]
 > Version 1.6.1 or newer is required on Minecraft 26.2. Iris is not compatible
@@ -112,9 +125,15 @@ still recommended.
 > **Graphics API** on **Default (OpenGL in 26.2)** or choose
 > **Prefer OpenGL**, then restart the game.
 
+> [!TIP]
+> If the pointer disappears in Minecraft's **Exclusive** fullscreen menus,
+> press `F11` to enter windowed mode, or `Alt+Tab` away and back. Shader code
+> cannot capture the Windows cursor; if this also happens with shaders disabled,
+> it is a Minecraft/Iris window-focus issue rather than a pack effect.
+
 ## Quick installation
 
-1. Download [`Lost_Signal_VHS_v1.8.1_Packaging_Hotfix.zip`](Lost_Signal_VHS_v1.8.1_Packaging_Hotfix.zip).
+1. Download [`Lost_Signal_VHS_v1.9_Signal_Physics.zip`](Lost_Signal_VHS_v1.9_Signal_Physics.zip).
 2. Put the ZIP into Minecraft's `shaderpacks` directory.
 3. Start Minecraft with Iris.
 4. Open **Options → Video Settings → Shader Packs**.
@@ -146,8 +165,20 @@ No resource pack, external texture, or compute-shader support is required.
 | **Composite Decode** | Consumer composite leakage, crawling edge dots, false color, and persistent oxide defects |
 | **Analog Fog** | Neutral depth fog recorded through the complete composite/VHS pipeline |
 
-Every preset is only a starting point. Open **Shader Pack Settings** to tune
-the tape, camera, signal, format, and color groups independently.
+Every preset is only a starting point. Version 1.9 preserves the intended look
+of all thirteen presets while making each transition reset every preset-owned
+option. Switching away from **Analog Fog** therefore clears its fog and restores
+the destination preset's decoder and tape-defect values. **Shader Pack
+Settings** is organized into three clear routes: **Core VHS Look**,
+**Atmosphere**, and **Advanced Settings**. Common controls are visible
+immediately; detailed signal, transport, camera, image, temporal, fog, and
+overlay groups remain available under **Advanced Settings**.
+
+Related controls now have clearer responsibilities. Chroma amount no longer
+silently increases bleed, motion smear no longer changes the spatial echo
+distance, glitch frequency no longer doubles as dropout density, and visible
+effects are applied at one appropriate stage instead of being accumulated in
+both recording and playback passes.
 
 ## Liminal Signal lighting
 
@@ -183,22 +214,56 @@ the tape, camera, signal, format, and color groups independently.
   fading, and noise through as many as five analog copies.
 - **Camera Era** selects 1980s tube, 1990s VHS, early-digital, or neutral color
   response. The optional recorded HUD adds REC, battery, and MM:SS timecode.
-- **Digital Zoom** and **Autofocus Hunting** recreate consumer camcorder optics
-  before the signal enters the virtual tape deck.
+- **Digital Zoom** enlarges the camera image before playback displacement;
+  **Autofocus Hunting** broadens the later luma/chroma sampling radius.
 - **Broken Signal** controls manual tracking, RF herringbone, rolling
   interference bands, buckled tape, and history-buffer frame repetition.
 
 ## Quality and signal modes
 
-- **Performance** reuses existing luma/chroma taps, reduces auto-exposure
-  metering from ten samples to two, and skips the optional spatial echo.
-- **Balanced** reuses the outer second-generation taps while preserving the
-  intended reference look; it is the default.
-- **Cinematic** keeps the complete multi-radius filter path for high-end GPUs.
+- **Performance** reuses existing luma/chroma taps, meters automatic gain from
+  one central sample, uses the lightweight two-channel decoder approximation,
+  and skips the optional spatial echo.
+- **Balanced** uses five-sample automatic-gain metering and the five-tap notch
+  decoder while reusing first-radius samples for the outer luma weights; it is
+  the default.
+- **Cinematic** keeps the complete multi-radius filter path and, for NTSC
+  Two-Line Comb, samples both five-tap raster lines. It is intended for
+  high-end GPUs.
 - **NTSC** uses 480-line, 59.94-field timing and stronger directional hue drift.
 - **PAL** uses 576-line, 50-field timing with alternating chroma phase.
 - **Interlaced Field Weave** refreshes one raster-line parity per field and
   retains the other parity from history, creating real motion combing.
+
+## Version 1.9 — Signal Physics
+
+- Added persistent view-depth metadata to motion history. Reprojected samples
+  are rejected at disocclusions, depth mismatches, off-screen motion, and large
+  camera jumps instead of smearing unrelated geometry into the new frame.
+- Replaced frame-local exposure breathing with persistent automatic gain:
+  bright overloads pull gain down quickly and dark scenes recover more slowly,
+  like a consumer camcorder circuit.
+- Consolidated composite separation into one physical playback decoder. The
+  Performance path uses a lightweight approximation; Balanced and Cinematic
+  use a five-tap horizontal notch, while Cinematic NTSC can use a ten-sample,
+  two-line comb comparison on vertically correlated detail. PAL uses the safe
+  notch path because its alternating chroma phase is not a simple line inverse.
+- Unified head-switch tearing, chroma attenuation, and RF noise behind one
+  field-locked event near the bottom of the tape frame.
+- Removed double application of recording/playback effects and clarified
+  overlapping controls without removing options or changing the intended
+  preset looks.
+- Made all thirteen profiles reset every preset-controlled option, fixing stale
+  fog and stronger decoder/defect values carrying into the next preset after
+  leaving **Analog Fog**.
+- Reorganized the settings into **Core VHS Look**, **Atmosphere**, and
+  **Advanced Settings** navigation while preserving direct access to all
+  existing controls.
+- Extended the release builder to reject duplicate menu entries and incomplete
+  profiles before packaging.
+- Retained the Minecraft 1.18.2–26.2 compatibility target. Primary and extended
+  targets share the conservative GLSL 1.20 pipeline, but not every listed
+  loader/GPU/driver combination has been live-tested.
 
 ## Version 1.8.1 — Critical Packaging Hotfix
 
@@ -211,7 +276,7 @@ the tape, camera, signal, format, and color groups independently.
 
 ## Version 1.8 — Analog Fog
 
-- Added true scene-depth fog with five selectable palettes and adjustable
+- Added true scene-depth fog with four palettes plus Off and adjustable
   density, start distance, falloff distance, and world-stable variation.
 - Integrated fog before the first tape generation instead of adding a clean
   digital overlay after VHS processing.
@@ -238,7 +303,7 @@ the tape, camera, signal, format, and color groups independently.
 - [`Lost_Signal_VHS/`](Lost_Signal_VHS/) — editable shader-pack source
 - [`Lost_Signal_VHS/shaders/lib/settings.glsl`](Lost_Signal_VHS/shaders/lib/settings.glsl) — direct effect controls
 - [`Lost_Signal_VHS/README.md`](Lost_Signal_VHS/README.md) — technical notes and testing checklist
-- [`Lost_Signal_VHS_v1.8.1_Packaging_Hotfix.zip`](Lost_Signal_VHS_v1.8.1_Packaging_Hotfix.zip) — current fixed release
+- [`Lost_Signal_VHS_v1.9_Signal_Physics.zip`](Lost_Signal_VHS_v1.9_Signal_Physics.zip) — current release
 - The v1.7 and v1.8 ZIPs are retained only for release provenance. Their Windows-style internal paths make them invalid in Iris; do not install them.
 
 ## License

@@ -11,6 +11,149 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $repoRoot 'Lost_Signal_VHS'
 $outputPath = Join-Path $repoRoot $OutputName
 
+function Test-ShaderProfiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PropertiesPath
+    )
+
+    $lines = @(Get-Content -LiteralPath $PropertiesPath)
+    $screenOptionCounts = @{}
+
+    foreach ($line in $lines) {
+        if ($line -notmatch '^\s*screen(?:\.[A-Z_]+)?\s*=\s*(.*)$') {
+            continue
+        }
+
+        foreach ($token in @($Matches[1] -split '\s+')) {
+            if ($token -notmatch '^[A-Z][A-Z0-9_]*$') {
+                continue
+            }
+
+            if (-not $screenOptionCounts.ContainsKey($token)) {
+                $screenOptionCounts[$token] = 0
+            }
+            $screenOptionCounts[$token]++
+        }
+    }
+
+    if ($screenOptionCounts.Count -eq 0) {
+        throw "No public shader options were found in $PropertiesPath"
+    }
+
+    $duplicateScreenOptions = @(
+        $screenOptionCounts.Keys |
+            Where-Object { $screenOptionCounts[$_] -ne 1 } |
+            Sort-Object
+    )
+    if ($duplicateScreenOptions.Count -gt 0) {
+        throw "Shader options must appear in exactly one settings screen: $($duplicateScreenOptions -join ', ')"
+    }
+
+    $profiles = @{}
+    foreach ($line in $lines) {
+        if ($line -notmatch '^\s*profile\.([A-Za-z0-9_]+)\s*=\s*(.*)$') {
+            continue
+        }
+
+        $profileName = $Matches[1]
+        if ($profiles.ContainsKey($profileName)) {
+            throw "Duplicate shader profile: $profileName"
+        }
+        $profiles[$profileName] = @($Matches[2] -split '\s+' | Where-Object { $_ })
+    }
+
+    if ($profiles.Count -eq 0) {
+        throw "No shader profiles were found in $PropertiesPath"
+    }
+
+    # These two choices describe the renderer rather than the VHS look. They
+    # deliberately remain unchanged when a user switches presets.
+    $globalOptions = @('QUALITY_LEVEL', 'SIGNAL_STANDARD')
+    $expectedOptions = @(
+        $screenOptionCounts.Keys |
+            Where-Object { $_ -notin $globalOptions } |
+            Sort-Object
+    )
+    $resolvedProfiles = @{}
+    $resolvingProfiles = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+
+    function Resolve-ShaderProfile {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$Name
+        )
+
+        if ($resolvedProfiles.ContainsKey($Name)) {
+            return @($resolvedProfiles[$Name])
+        }
+        if (-not $profiles.ContainsKey($Name)) {
+            throw "Unknown inherited shader profile: $Name"
+        }
+        if (-not $resolvingProfiles.Add($Name)) {
+            throw "Shader profile inheritance cycle includes: $Name"
+        }
+
+        $resolved = [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+        $directOptions = [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+
+        foreach ($token in $profiles[$Name]) {
+            if ($token -match '^profile\.([A-Za-z0-9_]+)$') {
+                foreach ($inheritedOption in @(Resolve-ShaderProfile -Name $Matches[1])) {
+                    [void]$resolved.Add($inheritedOption)
+                }
+                continue
+            }
+            if ($token -match '^!program\.') {
+                continue
+            }
+
+            $optionName = $token.TrimStart('!')
+            $optionName = @($optionName -split '[:=]', 2)[0]
+            if (-not $screenOptionCounts.ContainsKey($optionName)) {
+                throw "Profile $Name contains an unknown option: $optionName"
+            }
+            if (-not $directOptions.Add($optionName)) {
+                throw "Profile $Name assigns option more than once: $optionName"
+            }
+            [void]$resolved.Add($optionName)
+        }
+
+        [void]$resolvingProfiles.Remove($Name)
+        $resolvedProfiles[$Name] = [string[]]@($resolved)
+        return @($resolvedProfiles[$Name])
+    }
+
+    foreach ($profileName in @($profiles.Keys | Sort-Object)) {
+        $resolved = @(Resolve-ShaderProfile -Name $profileName)
+        $missing = @($expectedOptions | Where-Object { $_ -notin $resolved })
+        $unexpected = @($resolved | Where-Object { $_ -notin $expectedOptions })
+
+        if ($missing.Count -gt 0 -or $unexpected.Count -gt 0) {
+            $parts = @()
+            if ($missing.Count -gt 0) {
+                $parts += "missing: $($missing -join ', ')"
+            }
+            if ($unexpected.Count -gt 0) {
+                $parts += "must remain global: $($unexpected -join ', ')"
+            }
+            throw "Incomplete shader profile $profileName ($($parts -join '; '))"
+        }
+    }
+
+    [pscustomobject]@{
+        Profiles = $profiles.Count
+        PublicOptions = $screenOptionCounts.Count
+        PresetOptions = $expectedOptions.Count
+    }
+}
+
 if (-not (Test-Path -LiteralPath $sourceRoot -PathType Container)) {
     throw "Shader-pack source directory was not found: $sourceRoot"
 }
@@ -36,6 +179,10 @@ $directories = @(
 if ($files.Count -eq 0) {
     throw "No release files were found under $sourceRoot"
 }
+
+$profileValidation = Test-ShaderProfiles -PropertiesPath (
+    Join-Path $sourceRoot 'shaders\shaders.properties'
+)
 
 if (Test-Path -LiteralPath $outputPath) {
     Remove-Item -LiteralPath $outputPath -Force
@@ -162,6 +309,9 @@ $hash = Get-FileHash -LiteralPath $outputPath -Algorithm SHA256
     Path = $outputPath
     Files = $files.Count
     Directories = $directories.Count
+    Profiles = $profileValidation.Profiles
+    PublicOptions = $profileValidation.PublicOptions
+    PresetOptions = $profileValidation.PresetOptions
     Bytes = (Get-Item -LiteralPath $outputPath).Length
     SHA256 = $hash.Hash
 }
